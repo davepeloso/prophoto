@@ -1,0 +1,52 @@
+{
+    "name": "prophoto/intelligence",
+    "description": "Derived intelligence run storage and contracts integration for ProPhoto.",
+    "type": "laravel-package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ProPhoto Team"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "prophoto/contracts": "dev-main"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Intelligence\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProPhoto\\Intelligence\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Intelligence\\IntelligenceServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../prophoto-*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

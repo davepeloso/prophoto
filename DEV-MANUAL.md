@@ -328,3 +328,12 @@ Run re-normalization:
 cd sandbox
 "$PHP_BIN" artisan prophoto-assets:renormalize
 ```
+
+## 16) TODO triage board
+
+Open the prioritized backlog:
+
+```bash
+cd /Users/davepeloso/Sites/prophoto
+sed -n '1,220p' TODO.md
+```
