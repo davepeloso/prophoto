@@ -1,0 +1,21 @@
+{
+    "name": "prophoto/interactions",
+    "description": "Image interactions for ProPhoto - ratings, approvals, comments, edit requests",
+    "type": "library",
+    "license": "MIT",
+    "authors": [{"name": "ProPhoto", "email": "dev@prophoto.com"}],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "prophoto/contracts": "@dev",
+        "prophoto/gallery": "@dev"
+    },
+    "require-dev": {"orchestra/testbench": "^9.0", "pestphp/pest": "^2.0"},
+    "autoload": {"psr-4": {"ProPhoto\\Interactions\\": "src/"}},
+    "autoload-dev": {"psr-4": {"ProPhoto\\Interactions\\Tests\\": "tests/"}},
+    "extra": {"laravel": {"providers": ["ProPhoto\\Interactions\\InteractionsServiceProvider"]}},
+    "config": {"sort-packages": true, "allow-plugins": {"pestphp/pest-plugin": true}},
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

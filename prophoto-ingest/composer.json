@@ -1,0 +1,95 @@
+{
+    "name": "prophoto/ingest",
+    "description": "Professional photo ingestion and organization tool for Laravel.",
+    "keywords": ["laravel", "photography", "media", "ingest", "exif", "image-management"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Dave Peloso",
+            "email": "dave@prophoto.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1|^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "intervention/image": "^3.0",
+        "inertiajs/inertia-laravel": "^2.0",
+        "prophoto/assets": "@dev",
+        "prophoto/contracts": "@dev"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.13",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^2.0|^3.0",
+        "pestphp/pest-plugin-laravel": "^2.0|^3.0",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Ingest\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProPhoto\\Ingest\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Ingest\\IngestServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "lint": "vendor/bin/pint --test",
+        "lint:fix": "vendor/bin/pint",
+
+        "rebuild:quick": [
+            "@php -r 'echo \"\\033[1;33m⚡️ Quick Rebuild: Updating autoloader and clearing cache...\\033[0m\\n\";'",
+            "composer dump-autoload -o",
+            "CACHE_STORE=array CACHE_DRIVER=array vendor/bin/testbench optimize:clear"
+        ],
+        "rebuild": [
+            "@php -r 'echo \"\\033[1;34m⚙️ Standard Rebuild: Building assets and publishing...\\033[0m\\n\";'",
+            "npm install",
+            "npm run build",
+            "@rebuild:quick",
+            "vendor/bin/testbench vendor:publish --tag=ingest-assets --force"
+        ],
+        "rebuild:full": [
+            "@php -r 'echo \"\\033[1;31m💥 Full Rebuild: Reinstalling dependencies and resetting database...\\033[0m\\n\";'",
+            "composer install",
+            "npm ci",
+            "@rebuild",
+            "vendor/bin/testbench migrate:fresh",
+            "vendor/bin/testbench vendor:publish --tag=ingest-config --force"
+        ]
+    },
+    "scripts-descriptions": {
+        "rebuild:quick": "Updates PHP autoloader and clears cache. Use for backend-only changes.",
+        "rebuild": "Builds frontend assets and publishes them. Use for most day-to-day changes.",
+        "rebuild:full": "Clean reinstall of all dependencies, database, and assets. Use after major refactoring."
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true,
+        "platform-check": false
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../prophoto-*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

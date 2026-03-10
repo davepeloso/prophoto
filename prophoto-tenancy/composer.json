@@ -1,0 +1,48 @@
+{
+    "name": "prophoto/tenancy",
+    "description": "Multi-tenancy core for ProPhoto - Studio context, organization context, and impersonation",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ProPhoto",
+            "email": "dev@prophoto.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "prophoto/contracts": "@dev"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "pestphp/pest": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Tenancy\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProPhoto\\Tenancy\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Tenancy\\TenancyServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

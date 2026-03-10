@@ -1,0 +1,21 @@
+{
+    "name": "prophoto/contracts",
+    "description": "Shared interfaces, DTOs, enums, and contracts for ProPhoto packages",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ProPhoto Team"
+        }
+    ],
+    "require": {
+        "php": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Contracts\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

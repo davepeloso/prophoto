@@ -1,0 +1,38 @@
+# .gitignore for ProPhoto project
+
+# General
+.DS_Store
+.env
+.idea/
+.phpunit.result.cache
+npm-debug.log
+yarn-error.log
+.vagrant/
+
+# Composer
+/vendor
+composer.lock
+
+# Laravel
+/bootstrap/cache/*.php
+/storage/*.key
+/public/hot
+/public/storage
+/public/build
+*.log
+*.sqlite
+*.sqlite3
+
+# Node
+/node_modules
+/dist
+/build
+
+# Project-specific
+/sandbox
+/output
+/tmp
+
+# ProPhoto Ingest specific
+/prophoto-ingest/dist
+/prophoto-ingest/.phpunit.cache

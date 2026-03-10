@@ -1,0 +1,28 @@
+#!/bin/bash
+# ProPhoto Master CLI Launcher
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+HERD_PHP="${HOME}/Library/Application Support/Herd/bin/php"
+
+if [[ -n "${PROPHOTO_PHP_BIN:-}" && -x "${PROPHOTO_PHP_BIN}" ]]; then
+  PHP_BIN="${PROPHOTO_PHP_BIN}"
+elif [[ -x "${HERD_PHP}" ]]; then
+  PHP_BIN="${HERD_PHP}"
+elif command -v php >/dev/null 2>&1; then
+  PHP_BIN="$(command -v php)"
+else
+  echo "Error: no PHP binary found. Install PHP (Herd recommended)." >&2
+  exit 1
+fi
+
+export PROPHOTO_PHP_BIN="${PHP_BIN}"
+
+PHP_BIN_DIR="$(dirname "${PHP_BIN}")"
+case ":${PATH}:" in
+  *":${PHP_BIN_DIR}:"*) ;;
+  *) export PATH="${PHP_BIN_DIR}:${PATH}" ;;
+esac
+
+exec "${PHP_BIN}" "${SCRIPT_DIR}/prophoto.php" "$@"

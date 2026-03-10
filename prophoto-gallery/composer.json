@@ -1,0 +1,34 @@
+{
+    "name": "prophoto/gallery",
+    "description": "ProPhoto Gallery Management Package - Core gallery models, collections, sharing, templates, and interactions",
+    "type": "laravel-package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ProPhoto Team"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "prophoto/contracts": "*",
+        "prophoto/access": "*",
+        "prophoto/assets": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Gallery\\": "src/",
+            "ProPhoto\\Gallery\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Gallery\\GalleryServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,32 @@
+{
+    "name": "prophoto/access",
+    "description": "Hybrid Context-Aware RBAC for ProPhoto application.",
+    "type": "laravel-package",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Access\\": "src/",
+            "ProPhoto\\Access\\Database\\Seeders\\": "database/seeders/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0|^12.0",
+        "spatie/laravel-permission": "^6.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Access\\AccessServiceProvider"
+            ],
+            "aliases": {
+                "Access": "ProPhoto\\Access\\Facades\\Access"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

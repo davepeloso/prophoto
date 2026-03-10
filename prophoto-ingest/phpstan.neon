@@ -1,0 +1,8 @@
+parameters:
+    paths:
+        - src
+    level: 8
+    ignoreErrors:
+        - '#Call to an undefined method#'
+    excludePaths:
+        - src/IngestServiceProvider.php
