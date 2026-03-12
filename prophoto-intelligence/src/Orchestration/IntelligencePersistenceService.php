@@ -3,6 +3,7 @@
 namespace ProPhoto\Intelligence\Orchestration;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 use ProPhoto\Contracts\DTOs\EmbeddingResult;
 use InvalidArgumentException;
@@ -71,6 +72,9 @@ class IntelligencePersistenceService
         if ($result->embeddings === []) {
             throw new InvalidArgumentException('Persistence received an empty embedding payload for an embeddings-required run.');
         }
+        if (count($result->embeddings) !== 1) {
+            throw new InvalidArgumentException('Embedding persistence currently requires exactly one embedding per run.');
+        }
 
         $runId = (int) $result->runContext->runId;
         $assetId = $result->runContext->assetId->toInt();
@@ -97,6 +101,19 @@ class IntelligencePersistenceService
             if ($embeddingResult->vectorDimensions !== count($embeddingResult->embeddingVector)) {
                 throw new InvalidArgumentException('EmbeddingResult vector dimensions do not match vector payload size.');
             }
+            foreach ($embeddingResult->embeddingVector as $index => $value) {
+                if (! is_int($value) && ! is_float($value)) {
+                    throw new InvalidArgumentException(
+                        sprintf('EmbeddingResult vector value at index %d must be numeric.', $index)
+                    );
+                }
+
+                if (is_float($value) && ! is_finite($value)) {
+                    throw new InvalidArgumentException(
+                        sprintf('EmbeddingResult vector value at index %d must be finite.', $index)
+                    );
+                }
+            }
 
             try {
                 $encodedVector = json_encode($embeddingResult->embeddingVector, JSON_THROW_ON_ERROR);
@@ -114,6 +131,14 @@ class IntelligencePersistenceService
         }
 
         // insertOrIgnore ensures run-scoped idempotency during retries.
-        DB::table('asset_embeddings')->insertOrIgnore($rows);
+        $inserted = DB::table('asset_embeddings')->insertOrIgnore($rows);
+
+        if ($inserted === 0) {
+            Log::notice('Embedding persistence ignored duplicate row during retry-safe insert.', [
+                'run_id' => $runId,
+                'asset_id' => $assetId,
+                'row_count' => count($rows),
+            ]);
+        }
     }
 }

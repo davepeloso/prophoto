@@ -115,6 +115,68 @@ class IntelligenceEmbeddingVerticalSliceTest extends TestCase
         $this->assertSame(1, $count);
     }
 
+    public function test_embedding_persistence_fails_when_multiple_embeddings_are_provided(): void
+    {
+        $assetId = $this->createAsset();
+        $runId = $this->createEmbeddingRun($assetId);
+        $context = $this->embeddingRunContext($assetId, $runId);
+
+        $result = new GeneratorResult(
+            runContext: $context,
+            labels: [],
+            embeddings: [
+                new EmbeddingResult(
+                    assetId: AssetId::from($assetId),
+                    runId: $runId,
+                    embeddingVector: [0.12, -0.34, 0.56],
+                    vectorDimensions: 3
+                ),
+                new EmbeddingResult(
+                    assetId: AssetId::from($assetId),
+                    runId: $runId,
+                    embeddingVector: [0.11, -0.22, 0.33],
+                    vectorDimensions: 3
+                ),
+            ]
+        );
+
+        /** @var IntelligencePersistenceService $service */
+        $service = $this->app->make(IntelligencePersistenceService::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Embedding persistence currently requires exactly one embedding per run.');
+
+        $service->persistEmbeddings($result);
+    }
+
+    public function test_embedding_persistence_fails_when_vector_contains_non_numeric_values(): void
+    {
+        $assetId = $this->createAsset();
+        $runId = $this->createEmbeddingRun($assetId);
+        $context = $this->embeddingRunContext($assetId, $runId);
+
+        $result = new GeneratorResult(
+            runContext: $context,
+            labels: [],
+            embeddings: [
+                new EmbeddingResult(
+                    assetId: AssetId::from($assetId),
+                    runId: $runId,
+                    embeddingVector: [0.12, '0.34', 0.56],
+                    vectorDimensions: 3
+                ),
+            ]
+        );
+
+        /** @var IntelligencePersistenceService $service */
+        $service = $this->app->make(IntelligencePersistenceService::class);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('EmbeddingResult vector value at index 1 must be numeric.');
+
+        $service->persistEmbeddings($result);
+    }
+
     public function test_embedding_persistence_fails_on_run_id_mismatch(): void
     {
         $assetId = $this->createAsset();

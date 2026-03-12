@@ -1,0 +1,1009 @@
+{
+    "title": "ProPhoto Image Spine v3",
+    "description": "Machine-readable governance-oriented graph of the ProPhoto image spine with package ownership, aggregate and contract metadata, and dependency semantics for edges.",
+    "version": "3.0.0",
+    "metadataSchema": {
+        "nodeFields": [
+            "ownerPackage",
+            "boundedContext",
+            "aggregateRoot",
+            "persistenceModel",
+            "publicContract",
+            "mutability"
+        ],
+        "edgeFields": [
+            "edgeClass",
+            "timing",
+            "strength",
+            "direction"
+        ]
+    },
+    "nodes": [
+        {
+            "id": "staging-image",
+            "label": "StagingImage",
+            "type": "project",
+            "description": "Temporary ingest-side image record used during upload, review, metadata extraction, and derivative preparation before promotion into the gallery domain.",
+            "metadata": {
+                "ownerPackage": "prophoto-staging",
+                "boundedContext": "ingest",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "internal",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "ingest-job",
+            "label": "IngestJob",
+            "type": "solution",
+            "description": "Async workflow that coordinates metadata extraction, derivative generation, validation, and promotion of staging assets into canonical images.",
+            "metadata": {
+                "ownerPackage": "prophoto-staging",
+                "boundedContext": "ingest",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "internal",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "asset-ingested-event",
+            "label": "AssetIngested",
+            "type": "solution",
+            "description": "Domain event emitted when a staging asset is promoted into a permanent gallery image, allowing downstream packages to react with loose coupling.",
+            "metadata": {
+                "ownerPackage": "prophoto-contracts",
+                "boundedContext": "contracts",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "image",
+            "label": "Image",
+            "type": "project",
+            "description": "Canonical permanent image record in the gallery domain. It is the central asset entity that downstream modules reference.",
+            "metadata": {
+                "ownerPackage": "prophoto-gallery",
+                "boundedContext": "gallery",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "gallery",
+            "label": "Gallery",
+            "type": "project",
+            "description": "Permanent collection and access context for images. Galleries anchor review, access, delivery, and AI reuse workflows.",
+            "metadata": {
+                "ownerPackage": "prophoto-gallery",
+                "boundedContext": "gallery",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "metadata-profile",
+            "label": "MetadataProfile",
+            "type": "concept",
+            "description": "Normalized technical and descriptive metadata extracted from source assets and used for filtering, search, and downstream decisions.",
+            "metadata": {
+                "ownerPackage": "prophoto-gallery",
+                "boundedContext": "gallery",
+                "aggregateRoot": false,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "original-file",
+            "label": "OriginalFile",
+            "type": "technology",
+            "description": "Retained original asset file associated with a promoted image in canonical storage.",
+            "metadata": {
+                "ownerPackage": "prophoto-core",
+                "boundedContext": "storage",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "internal",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "derivative-set",
+            "label": "DerivativeSet",
+            "type": "technology",
+            "description": "Generated renditions such as thumbnail, preview, social, and print variants used throughout the platform.",
+            "metadata": {
+                "ownerPackage": "prophoto-core",
+                "boundedContext": "storage",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "storage-path",
+            "label": "StoragePath",
+            "type": "technology",
+            "description": "Canonical storage path convention for originals and derivatives across studio, organization, gallery, and image identifiers.",
+            "metadata": {
+                "ownerPackage": "prophoto-core",
+                "boundedContext": "storage",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "organization",
+            "label": "Organization",
+            "type": "concept",
+            "description": "Tenant or business context that scopes galleries, permissions, storage, and downstream workflows.",
+            "metadata": {
+                "ownerPackage": "prophoto-core",
+                "boundedContext": "tenancy",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "studio",
+            "label": "Studio",
+            "type": "concept",
+            "description": "Top-level studio context governing branding, ownership, and tenancy boundaries across the system.",
+            "metadata": {
+                "ownerPackage": "prophoto-core",
+                "boundedContext": "tenancy",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "subject",
+            "label": "Subject",
+            "type": "concept",
+            "description": "A person or featured entity represented in one or more images and often the actor for ratings, approvals, and AI reuse eligibility.",
+            "metadata": {
+                "ownerPackage": "prophoto-clients",
+                "boundedContext": "client-identity",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "session",
+            "label": "Session",
+            "type": "project",
+            "description": "A booking or photo session context that can create a gallery and connect business workflow to image assets.",
+            "metadata": {
+                "ownerPackage": "prophoto-booking",
+                "boundedContext": "booking",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "image-interaction",
+            "label": "ImageInteraction",
+            "type": "project",
+            "description": "A user action tied to an image, including rating, note, favorite, approval, or download request.",
+            "metadata": {
+                "ownerPackage": "prophoto-interactions",
+                "boundedContext": "review",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "approval",
+            "label": "Approval",
+            "type": "concept",
+            "description": "An approval signal or state associated with an image and used to unlock downstream delivery or AI workflows.",
+            "metadata": {
+                "ownerPackage": "prophoto-interactions",
+                "boundedContext": "review",
+                "aggregateRoot": false,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "rating",
+            "label": "Rating",
+            "type": "metric",
+            "description": "A qualitative or quantitative preference signal attached to an image by a participant or staff user.",
+            "metadata": {
+                "ownerPackage": "prophoto-interactions",
+                "boundedContext": "review",
+                "aggregateRoot": false,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "permission-check",
+            "label": "PermissionCheck",
+            "type": "skill",
+            "description": "Contextual authorization logic determining which actors may view, interact with, or download a gallery or image.",
+            "metadata": {
+                "ownerPackage": "prophoto-access",
+                "boundedContext": "access",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "magic-link",
+            "label": "MagicLink",
+            "type": "technology",
+            "description": "A secure access token or contextual link that grants entry into gallery or delivery surfaces.",
+            "metadata": {
+                "ownerPackage": "prophoto-access",
+                "boundedContext": "access",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "download-archive",
+            "label": "DownloadArchive",
+            "type": "project",
+            "description": "A packaged downloadable artifact, such as a ZIP, containing authorized image selections or renditions.",
+            "metadata": {
+                "ownerPackage": "prophoto-downloads",
+                "boundedContext": "delivery",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "delivery-job",
+            "label": "DeliveryJob",
+            "type": "solution",
+            "description": "Async workflow that assembles authorized renditions into a delivery artifact and prepares secure access.",
+            "metadata": {
+                "ownerPackage": "prophoto-downloads",
+                "boundedContext": "delivery",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "internal",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "archive-built-event",
+            "label": "ArchiveBuilt",
+            "type": "solution",
+            "description": "Domain event emitted when a download archive has been assembled and is ready for secure access or audit recording.",
+            "metadata": {
+                "ownerPackage": "prophoto-contracts",
+                "boundedContext": "contracts",
+                "aggregateRoot": false,
+                "persistenceModel": false,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "audit-event",
+            "label": "AuditEvent",
+            "type": "project",
+            "description": "An activity record describing who did what to which resource, with context for traceability and compliance.",
+            "metadata": {
+                "ownerPackage": "prophoto-audit",
+                "boundedContext": "audit",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        },
+        {
+            "id": "ai-generation",
+            "label": "AIGeneration",
+            "type": "project",
+            "description": "A training or generation workflow that consumes approved gallery images to create derived creative outputs.",
+            "metadata": {
+                "ownerPackage": "prophoto-ai",
+                "boundedContext": "ai",
+                "aggregateRoot": true,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "mutable"
+            }
+        },
+        {
+            "id": "generated-portrait",
+            "label": "GeneratedPortrait",
+            "type": "project",
+            "description": "An AI-produced portrait or derivative output associated with a generation workflow and mapped back to subject or gallery context.",
+            "metadata": {
+                "ownerPackage": "prophoto-ai",
+                "boundedContext": "ai",
+                "aggregateRoot": false,
+                "persistenceModel": true,
+                "publicContract": "public-contract",
+                "mutability": "immutable"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "id": "e1",
+            "source": "ingest-job",
+            "target": "staging-image",
+            "label": "processes",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e2",
+            "source": "ingest-job",
+            "target": "metadata-profile",
+            "label": "extracts into",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e3",
+            "source": "ingest-job",
+            "target": "derivative-set",
+            "label": "generates",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e4",
+            "source": "staging-image",
+            "target": "image",
+            "label": "promotes into",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e5",
+            "source": "ingest-job",
+            "target": "asset-ingested-event",
+            "label": "emits",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e6",
+            "source": "asset-ingested-event",
+            "target": "image",
+            "label": "announces creation of",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e7",
+            "source": "asset-ingested-event",
+            "target": "gallery",
+            "label": "notifies downstream consumers about membership in",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e8",
+            "source": "image",
+            "target": "gallery",
+            "label": "belongs to",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e9",
+            "source": "image",
+            "target": "metadata-profile",
+            "label": "is described by",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e10",
+            "source": "image",
+            "target": "original-file",
+            "label": "is backed by",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read-write"
+            }
+        },
+        {
+            "id": "e11",
+            "source": "image",
+            "target": "derivative-set",
+            "label": "has renditions in",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read-write"
+            }
+        },
+        {
+            "id": "e12",
+            "source": "storage-path",
+            "target": "original-file",
+            "label": "resolves location for",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e13",
+            "source": "storage-path",
+            "target": "derivative-set",
+            "label": "resolves location for",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e14",
+            "source": "studio",
+            "target": "storage-path",
+            "label": "participates in path convention for",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e15",
+            "source": "organization",
+            "target": "storage-path",
+            "label": "participates in path convention for",
+            "metadata": {
+                "edgeClass": "storage/path concern",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e16",
+            "source": "organization",
+            "target": "gallery",
+            "label": "scopes",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e17",
+            "source": "studio",
+            "target": "organization",
+            "label": "contains context for",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e18",
+            "source": "session",
+            "target": "gallery",
+            "label": "can automatically create",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e19",
+            "source": "session",
+            "target": "organization",
+            "label": "belongs to workflow context within",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e20",
+            "source": "session",
+            "target": "subject",
+            "label": "creates photography context for",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read-write"
+            }
+        },
+        {
+            "id": "e21",
+            "source": "subject",
+            "target": "image",
+            "label": "appears in",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read-write"
+            }
+        },
+        {
+            "id": "e22",
+            "source": "image-interaction",
+            "target": "image",
+            "label": "targets",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e23",
+            "source": "image-interaction",
+            "target": "gallery",
+            "label": "occurs within",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e24",
+            "source": "rating",
+            "target": "image",
+            "label": "evaluates",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e25",
+            "source": "approval",
+            "target": "image",
+            "label": "approves",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e26",
+            "source": "subject",
+            "target": "rating",
+            "label": "can provide",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e27",
+            "source": "subject",
+            "target": "approval",
+            "label": "can provide",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e28",
+            "source": "gallery",
+            "target": "image-interaction",
+            "label": "collects",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e29",
+            "source": "metadata-profile",
+            "target": "gallery",
+            "label": "supports search and curation within",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e30",
+            "source": "metadata-profile",
+            "target": "image-interaction",
+            "label": "supports filtering and review of",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e31",
+            "source": "permission-check",
+            "target": "gallery",
+            "label": "authorizes access to",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e32",
+            "source": "permission-check",
+            "target": "image",
+            "label": "authorizes actions on",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e33",
+            "source": "permission-check",
+            "target": "magic-link",
+            "label": "validates claims presented by",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e34",
+            "source": "magic-link",
+            "target": "gallery",
+            "label": "grants access to",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e35",
+            "source": "gallery",
+            "target": "magic-link",
+            "label": "can issue",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e36",
+            "source": "delivery-job",
+            "target": "download-archive",
+            "label": "builds",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e37",
+            "source": "delivery-job",
+            "target": "derivative-set",
+            "label": "collects authorized renditions from",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e38",
+            "source": "delivery-job",
+            "target": "archive-built-event",
+            "label": "emits",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e39",
+            "source": "download-archive",
+            "target": "image",
+            "label": "packages authorized selections of",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e40",
+            "source": "gallery",
+            "target": "download-archive",
+            "label": "can be delivered through",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e41",
+            "source": "archive-built-event",
+            "target": "download-archive",
+            "label": "announces readiness of",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e42",
+            "source": "audit-event",
+            "target": "download-archive",
+            "label": "tracks generation of",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e43",
+            "source": "audit-event",
+            "target": "image-interaction",
+            "label": "records",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e44",
+            "source": "image",
+            "target": "audit-event",
+            "label": "produces lifecycle activity in",
+            "metadata": {
+                "edgeClass": "domain event",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e45",
+            "source": "gallery",
+            "target": "ai-generation",
+            "label": "can serve as training source for",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e46",
+            "source": "image",
+            "target": "ai-generation",
+            "label": "can become training input for",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e47",
+            "source": "approval",
+            "target": "ai-generation",
+            "label": "enables eligibility for",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e48",
+            "source": "metadata-profile",
+            "target": "ai-generation",
+            "label": "can inform selection rules for",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e49",
+            "source": "ai-generation",
+            "target": "generated-portrait",
+            "label": "produces",
+            "metadata": {
+                "edgeClass": "async workflow/job",
+                "timing": "async",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e50",
+            "source": "generated-portrait",
+            "target": "subject",
+            "label": "depicts",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e51",
+            "source": "generated-portrait",
+            "target": "gallery",
+            "label": "can be attached back to",
+            "metadata": {
+                "edgeClass": "Eloquent relationship",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "write"
+            }
+        },
+        {
+            "id": "e52",
+            "source": "rating",
+            "target": "download-archive",
+            "label": "can influence inclusion in",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e53",
+            "source": "permission-check",
+            "target": "download-archive",
+            "label": "authorizes download of",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "hard",
+                "direction": "read"
+            }
+        },
+        {
+            "id": "e54",
+            "source": "download-archive",
+            "target": "magic-link",
+            "label": "can be exposed through",
+            "metadata": {
+                "edgeClass": "policy/auth dependency",
+                "timing": "sync",
+                "strength": "soft",
+                "direction": "write"
+            }
+        }
+    ]
+}
