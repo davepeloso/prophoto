@@ -6,6 +6,8 @@
   - Label run: `demo_tagging`
   - Embedding run: `demo_embedding`
 - Both are triggered on `AssetReady` as separate runs with separate generator/model identity.
+- Phase tracking is now centralized in:
+  - [DERIVED-INTELLIGENCE-PHASE-NOTES.md](/Users/davepeloso/Sites/prophoto/docs/architecture/DERIVED-INTELLIGENCE-PHASE-NOTES.md)
 
 ## What Was Completed
 - Added embedding generator:
@@ -37,7 +39,7 @@
 
 ## Deferred / Not Implemented Yet
 - Keep `AssetId::toInt()` usage for now (future UUID/ULID migration risk).
-- `markCompleted()` still allows `pending -> completed` (should likely tighten to `running -> completed` later).
+- `markCompleted()` still allows `pending -> completed` (non-blocking for now; long-term target is `running -> completed` only).
 - `IntelligenceRunRepository::find()` remains weakly typed (`?object`).
 - `AssetEmbeddingUpdated` still includes `resultTypes` (consider trimming later).
 - Label and embedding orchestrators currently duplicate shared run flow; needs consolidation helper/base service.

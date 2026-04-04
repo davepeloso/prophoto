@@ -9,8 +9,11 @@ use ProPhoto\Intelligence\Generators\DemoEmbeddingGenerator;
 use ProPhoto\Intelligence\Generators\DemoTaggingGenerator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceExecutionService;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEmbeddingOrchestrator;
+use ProPhoto\Intelligence\Orchestration\IntelligenceEntryOrchestrator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceOrchestrator;
 use ProPhoto\Intelligence\Orchestration\IntelligencePersistenceService;
+use ProPhoto\Intelligence\Planning\IntelligencePlanner;
+use ProPhoto\Intelligence\Registry\IntelligenceGeneratorRegistry;
 use ProPhoto\Intelligence\Repositories\IntelligenceRunRepository;
 
 class IntelligenceServiceProvider extends ServiceProvider
@@ -22,6 +25,22 @@ class IntelligenceServiceProvider extends ServiceProvider
         $this->app->singleton(IntelligencePersistenceService::class);
         $this->app->singleton(DemoTaggingGenerator::class);
         $this->app->singleton(DemoEmbeddingGenerator::class);
+        $this->app->singleton(IntelligenceGeneratorRegistry::class, function ($app): IntelligenceGeneratorRegistry {
+            return new IntelligenceGeneratorRegistry(
+                demoTaggingResolver: static fn () => $app->make(DemoTaggingGenerator::class),
+                demoEmbeddingResolver: static fn () => $app->make(DemoEmbeddingGenerator::class)
+            );
+        });
+        $this->app->singleton(IntelligencePlanner::class);
+        $this->app->singleton(IntelligenceEntryOrchestrator::class, function ($app): IntelligenceEntryOrchestrator {
+            return new IntelligenceEntryOrchestrator(
+                runRepository: $app->make(IntelligenceRunRepository::class),
+                executionService: $app->make(IntelligenceExecutionService::class),
+                persistenceService: $app->make(IntelligencePersistenceService::class),
+                generatorRegistry: $app->make(IntelligenceGeneratorRegistry::class),
+                planner: $app->make(IntelligencePlanner::class)
+            );
+        });
 
         $this->app->singleton(IntelligenceOrchestrator::class, function ($app): IntelligenceOrchestrator {
             return new IntelligenceOrchestrator(
@@ -55,6 +74,37 @@ class IntelligenceServiceProvider extends ServiceProvider
         ], 'prophoto-intelligence-migrations');
 
         Event::listen(AssetReadyV1::class, function (AssetReadyV1 $event): void {
+            $entryOrchestratorEnabled = (bool) config(
+                'intelligence.entry_orchestrator_enabled',
+                (bool) config(
+                    'prophoto-intelligence.entry_orchestrator_enabled',
+                    (bool) env('INTELLIGENCE_ENTRY_ORCHESTRATOR_ENABLED', true)
+                )
+            );
+
+            if ($entryOrchestratorEnabled) {
+                $defaultMediaKind = (string) config(
+                    'intelligence.entry_orchestrator_default_media_kind',
+                    (string) config(
+                        'prophoto-intelligence.entry_orchestrator_default_media_kind',
+                        (string) env('INTELLIGENCE_ENTRY_ORCHESTRATOR_DEFAULT_MEDIA_KIND', 'image')
+                    )
+                );
+
+                $this->app->make(IntelligenceEntryOrchestrator::class)->handleAssetReady(
+                    event: $event,
+                    canonicalMetadata: [
+                        'media_kind' => $defaultMediaKind,
+                        'is_ready_for_intelligence' => $event->status === 'ready'
+                            && $event->hasOriginal
+                            && $event->hasNormalizedMetadata
+                            && $event->hasDerivatives,
+                    ]
+                );
+
+                return;
+            }
+
             $this->app->make(IntelligenceOrchestrator::class)->handleAssetReady($event);
             $this->app->make(IntelligenceEmbeddingOrchestrator::class)->handleAssetReady($event);
         });

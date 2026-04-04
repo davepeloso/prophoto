@@ -123,6 +123,32 @@ class IntelligenceRunRepository
         return $row ?: null;
     }
 
+    /**
+     * @return list<object>
+     */
+    public function plannerRunSummariesForAsset(AssetId $assetId): array
+    {
+        return DB::table('intelligence_runs')
+            ->select([
+                'asset_id',
+                'generator_type',
+                'generator_version',
+                'model_name',
+                'model_version',
+                'configuration_hash',
+                'run_status',
+            ])
+            ->where('asset_id', $assetId->toInt())
+            ->whereIn('run_status', [
+                RunStatus::PENDING->value,
+                RunStatus::RUNNING->value,
+                RunStatus::COMPLETED->value,
+            ])
+            ->orderByDesc('id')
+            ->get()
+            ->all();
+    }
+
     protected function assertAssetExists(int $assetId): void
     {
         if (! DB::table('assets')->where('id', $assetId)->exists()) {
