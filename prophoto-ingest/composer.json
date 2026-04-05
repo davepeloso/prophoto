@@ -1,0 +1,35 @@
+{
+  "name": "prophoto/ingest",
+  "description": "ProPhoto ingest domain package",
+  "type": "library",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^11.0",
+    "illuminate/database": "^11.0",
+    "illuminate/events": "^11.0",
+    "illuminate/contracts": "^11.0",
+    "prophoto/contracts": "@dev",
+    "prophoto/assets": "@dev",
+    "prophoto/booking": "@dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "ProPhoto\\Ingest\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ProPhoto\\Ingest\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "ProPhoto\\Ingest\\IngestServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
