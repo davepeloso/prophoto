@@ -6,6 +6,7 @@ use InvalidArgumentException;
 use ProPhoto\Contracts\Contracts\Intelligence\AssetIntelligenceGeneratorContract;
 use ProPhoto\Intelligence\Generators\DemoEmbeddingGenerator;
 use ProPhoto\Intelligence\Generators\DemoTaggingGenerator;
+use ProPhoto\Intelligence\Generators\EventSceneTaggingGenerator;
 use ProPhoto\Intelligence\Planning\GeneratorDescriptor;
 use RuntimeException;
 
@@ -23,7 +24,8 @@ class IntelligenceGeneratorRegistry
 
     public function __construct(
         ?callable $demoTaggingResolver = null,
-        ?callable $demoEmbeddingResolver = null
+        ?callable $demoEmbeddingResolver = null,
+        ?callable $eventSceneTaggingResolver = null
     ) {
         $this->register(
             descriptor: new GeneratorDescriptor(
@@ -32,7 +34,8 @@ class IntelligenceGeneratorRegistry
                 supported_media_kinds: ['image', 'pdf'],
                 produces_outputs: ['labels'],
                 default_model_name: 'demo-tag-model',
-                default_model_version: 'v1'
+                default_model_version: 'v1',
+                requires_session_context: false
             ),
             resolver: $demoTaggingResolver ?? static fn (): AssetIntelligenceGeneratorContract => new DemoTaggingGenerator()
         );
@@ -44,9 +47,26 @@ class IntelligenceGeneratorRegistry
                 supported_media_kinds: ['image'],
                 produces_outputs: ['embeddings'],
                 default_model_name: 'demo-embedding-model',
-                default_model_version: 'v1'
+                default_model_version: 'v1',
+                requires_session_context: false
             ),
             resolver: $demoEmbeddingResolver ?? static fn (): AssetIntelligenceGeneratorContract => new DemoEmbeddingGenerator()
+        );
+
+        $this->register(
+            descriptor: new GeneratorDescriptor(
+                generator_type: 'event_scene_tagging',
+                generator_version: 'v1',
+                supported_media_kinds: ['image'],
+                produces_outputs: ['labels'],
+                default_model_name: 'event-scene-model',
+                default_model_version: 'v1',
+                requires_session_context: true,
+                preferred_session_types: ['engagement', 'wedding', 'ceremony', 'headshots'],
+                preferred_job_types: ['wedding', 'portrait', 'event']
+            ),
+            resolver: $eventSceneTaggingResolver
+                ?? static fn (): AssetIntelligenceGeneratorContract => new EventSceneTaggingGenerator()
         );
     }
 

@@ -9,6 +9,8 @@ class GeneratorDescriptor
     /**
      * @param list<string> $supported_media_kinds
      * @param list<string> $produces_outputs
+     * @param list<string> $preferred_session_types
+     * @param list<string> $preferred_job_types
      */
     public function __construct(
         public readonly string $generator_type,
@@ -16,7 +18,10 @@ class GeneratorDescriptor
         public readonly array $supported_media_kinds,
         public readonly array $produces_outputs,
         public readonly string $default_model_name,
-        public readonly string $default_model_version
+        public readonly string $default_model_version,
+        public readonly bool $requires_session_context = false,
+        public readonly array $preferred_session_types = [],
+        public readonly array $preferred_job_types = []
     ) {
         if ($this->generator_type === '') {
             throw new InvalidArgumentException('Generator descriptor requires a non-empty generator_type.');

@@ -27,7 +27,7 @@ class IntelligenceEntryOrchestratorTest extends TestCase
             canonicalMetadata: ['mime_type' => 'image/jpeg']
         );
 
-        $this->assertCount(2, $intents);
+        $this->assertCount(3, $intents);
         $this->assertSame(2, DB::table('intelligence_runs')->where('asset_id', $assetId)->count());
 
         $tagRun = DB::table('intelligence_runs')
@@ -43,6 +43,13 @@ class IntelligenceEntryOrchestratorTest extends TestCase
         $this->assertNotNull($embeddingRun);
         $this->assertSame('completed', $tagRun->run_status);
         $this->assertSame('completed', $embeddingRun->run_status);
+
+        $eventSceneIntent = $this->findIntent($intents, 'event_scene_tagging');
+        $this->assertSame(PlannedIntelligenceRun::DECISION_SKIPPED, $eventSceneIntent->decision);
+        $this->assertSame(
+            PlannerDecisionReason::SESSION_CONTEXT_REQUIRED_BUT_MISSING->value,
+            $eventSceneIntent->skip_reason
+        );
 
         $this->assertGreaterThan(0, DB::table('asset_labels')->where('run_id', $tagRun->id)->count());
         $this->assertSame(1, DB::table('asset_embeddings')->where('run_id', $embeddingRun->id)->count());
@@ -62,10 +69,13 @@ class IntelligenceEntryOrchestratorTest extends TestCase
 
         $taggingIntent = $this->findIntent($intents, 'demo_tagging');
         $embeddingIntent = $this->findIntent($intents, 'demo_embedding');
+        $eventSceneIntent = $this->findIntent($intents, 'event_scene_tagging');
 
         $this->assertSame(PlannedIntelligenceRun::DECISION_PLANNED, $taggingIntent->decision);
         $this->assertSame(PlannedIntelligenceRun::DECISION_SKIPPED, $embeddingIntent->decision);
         $this->assertSame(PlannerDecisionReason::UNSUPPORTED_MEDIA_KIND->value, $embeddingIntent->skip_reason);
+        $this->assertSame(PlannedIntelligenceRun::DECISION_SKIPPED, $eventSceneIntent->decision);
+        $this->assertSame(PlannerDecisionReason::UNSUPPORTED_MEDIA_KIND->value, $eventSceneIntent->skip_reason);
 
         $this->assertSame(1, DB::table('intelligence_runs')->where('asset_id', $assetId)->count());
         $this->assertNotNull(
@@ -98,10 +108,16 @@ class IntelligenceEntryOrchestratorTest extends TestCase
         $this->assertSame(0, DB::table('asset_labels')->count());
         $this->assertSame(0, DB::table('asset_embeddings')->count());
 
-        foreach ($resultIntents as $intent) {
-            $this->assertSame(PlannedIntelligenceRun::DECISION_SKIPPED, $intent->decision);
-            $this->assertSame(PlannerDecisionReason::MATCHING_COMPLETED_RUN_EXISTS->value, $intent->skip_reason);
-        }
+        $taggingIntent = $this->findIntent($resultIntents, 'demo_tagging');
+        $embeddingIntent = $this->findIntent($resultIntents, 'demo_embedding');
+        $eventSceneIntent = $this->findIntent($resultIntents, 'event_scene_tagging');
+
+        $this->assertSame(PlannerDecisionReason::MATCHING_COMPLETED_RUN_EXISTS->value, $taggingIntent->skip_reason);
+        $this->assertSame(PlannerDecisionReason::MATCHING_COMPLETED_RUN_EXISTS->value, $embeddingIntent->skip_reason);
+        $this->assertSame(
+            PlannerDecisionReason::SESSION_CONTEXT_REQUIRED_BUT_MISSING->value,
+            $eventSceneIntent->skip_reason
+        );
     }
 
     public function test_active_runs_are_skipped(): void
@@ -125,10 +141,16 @@ class IntelligenceEntryOrchestratorTest extends TestCase
         $this->assertSame(0, DB::table('asset_labels')->count());
         $this->assertSame(0, DB::table('asset_embeddings')->count());
 
-        foreach ($resultIntents as $intent) {
-            $this->assertSame(PlannedIntelligenceRun::DECISION_SKIPPED, $intent->decision);
-            $this->assertSame(PlannerDecisionReason::ACTIVE_RUN_EXISTS->value, $intent->skip_reason);
-        }
+        $taggingIntent = $this->findIntent($resultIntents, 'demo_tagging');
+        $embeddingIntent = $this->findIntent($resultIntents, 'demo_embedding');
+        $eventSceneIntent = $this->findIntent($resultIntents, 'event_scene_tagging');
+
+        $this->assertSame(PlannerDecisionReason::ACTIVE_RUN_EXISTS->value, $taggingIntent->skip_reason);
+        $this->assertSame(PlannerDecisionReason::ACTIVE_RUN_EXISTS->value, $embeddingIntent->skip_reason);
+        $this->assertSame(
+            PlannerDecisionReason::SESSION_CONTEXT_REQUIRED_BUT_MISSING->value,
+            $eventSceneIntent->skip_reason
+        );
     }
 
     public function test_no_duplicate_run_execution_occurs_for_skipped_cases(): void
@@ -167,13 +189,18 @@ class IntelligenceEntryOrchestratorTest extends TestCase
         /** @var IntelligenceGeneratorRegistry $registry */
         $registry = $this->app->make(IntelligenceGeneratorRegistry::class);
 
-        return $planner->plan(
+        $intents = $planner->plan(
             assetId: AssetId::from($assetId),
             canonicalMetadata: ['mime_type' => 'image/jpeg'],
             generatorDescriptors: $registry->descriptors(),
             intelligenceConfig: [],
             existingRunSummaries: []
         );
+
+        return array_values(array_filter(
+            $intents,
+            static fn (PlannedIntelligenceRun $intent): bool => $intent->decision === PlannedIntelligenceRun::DECISION_PLANNED
+        ));
     }
 
     protected function insertRunFromIntent(int $assetId, PlannedIntelligenceRun $intent, string $runStatus): int

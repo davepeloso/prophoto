@@ -15,6 +15,7 @@ readonly class IntelligenceRunContext
         public string $modelVersion,
         public RunScope $runScope = RunScope::SINGLE_ASSET,
         public ?string $configurationHash = null,
-        public array $metadataContext = []
+        public array $metadataContext = [],
+        public ?SessionContextSnapshot $sessionContextSnapshot = null
     ) {}
 }

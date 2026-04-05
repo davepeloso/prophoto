@@ -4,7 +4,10 @@ namespace ProPhoto\Intelligence\Planning;
 
 use JsonException;
 use ProPhoto\Contracts\DTOs\AssetId;
+use ProPhoto\Contracts\DTOs\SessionContextSnapshot;
+use ProPhoto\Contracts\Enums\SessionAssociationLockState;
 use ProPhoto\Contracts\Enums\RunScope;
+use ProPhoto\Contracts\Enums\SessionContextReliability;
 use ProPhoto\Contracts\Enums\RunStatus;
 
 class IntelligencePlanner
@@ -23,7 +26,8 @@ class IntelligencePlanner
         array $intelligenceConfig = [],
         array $existingRunSummaries = [],
         string $triggerSource = 'asset_ready',
-        RunScope $runScope = RunScope::SINGLE_ASSET
+        RunScope $runScope = RunScope::SINGLE_ASSET,
+        ?SessionContextSnapshot $sessionContextSnapshot = null
     ): array {
         $globalEnabled = (bool) ($intelligenceConfig['enabled'] ?? true);
         $isReadyForIntelligence = $this->isReadyForIntelligence($canonicalMetadata);
@@ -113,6 +117,58 @@ class IntelligencePlanner
                 continue;
             }
 
+            if ($descriptor->requires_session_context && $sessionContextSnapshot === null) {
+                $plans[] = PlannedIntelligenceRun::skipped(
+                    assetId: $assetId,
+                    generatorType: $descriptor->generator_type,
+                    generatorVersion: $effectiveGeneratorVersion,
+                    modelName: $modelName,
+                    modelVersion: $modelVersion,
+                    configurationHash: $configurationHash,
+                    runScope: $runScope,
+                    triggerSource: $triggerSource,
+                    requiredOutputs: $requiredOutputs,
+                    reason: PlannerDecisionReason::SESSION_CONTEXT_REQUIRED_BUT_MISSING
+                );
+                continue;
+            }
+
+            if ($descriptor->requires_session_context
+                && $this->isLockedUnassigned($sessionContextSnapshot)
+            ) {
+                $plans[] = PlannedIntelligenceRun::skipped(
+                    assetId: $assetId,
+                    generatorType: $descriptor->generator_type,
+                    generatorVersion: $effectiveGeneratorVersion,
+                    modelName: $modelName,
+                    modelVersion: $modelVersion,
+                    configurationHash: $configurationHash,
+                    runScope: $runScope,
+                    triggerSource: $triggerSource,
+                    requiredOutputs: $requiredOutputs,
+                    reason: PlannerDecisionReason::SESSION_CONTEXT_LOCKED_UNASSIGNED
+                );
+                continue;
+            }
+
+            if ($descriptor->requires_session_context
+                && $this->isReliabilityTooLowForRequiredContext($sessionContextSnapshot)
+            ) {
+                $plans[] = PlannedIntelligenceRun::skipped(
+                    assetId: $assetId,
+                    generatorType: $descriptor->generator_type,
+                    generatorVersion: $effectiveGeneratorVersion,
+                    modelName: $modelName,
+                    modelVersion: $modelVersion,
+                    configurationHash: $configurationHash,
+                    runScope: $runScope,
+                    triggerSource: $triggerSource,
+                    requiredOutputs: $requiredOutputs,
+                    reason: PlannerDecisionReason::SESSION_CONTEXT_RELIABILITY_TOO_LOW
+                );
+                continue;
+            }
+
             if ($this->hasActiveRun(
                 existingRunSummaries: $existingRunSummaries,
                 assetId: $assetId,
@@ -171,6 +227,28 @@ class IntelligencePlanner
         }
 
         return $plans;
+    }
+
+    protected function isLockedUnassigned(?SessionContextSnapshot $sessionContextSnapshot): bool
+    {
+        if (! $sessionContextSnapshot instanceof SessionContextSnapshot) {
+            return false;
+        }
+
+        return $sessionContextSnapshot->manualLockState === SessionAssociationLockState::MANUAL_UNASSIGNED_LOCK;
+    }
+
+    protected function isReliabilityTooLowForRequiredContext(?SessionContextSnapshot $sessionContextSnapshot): bool
+    {
+        if (! $sessionContextSnapshot instanceof SessionContextSnapshot) {
+            return true;
+        }
+
+        return in_array(
+            $sessionContextSnapshot->contextReliability,
+            [SessionContextReliability::LOW, SessionContextReliability::NONE],
+            true
+        );
     }
 
     /**

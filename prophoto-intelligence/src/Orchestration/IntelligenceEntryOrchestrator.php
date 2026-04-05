@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use ProPhoto\Contracts\DTOs\GeneratorResult;
 use ProPhoto\Contracts\DTOs\IntelligenceRunContext;
+use ProPhoto\Contracts\DTOs\SessionContextSnapshot;
 use ProPhoto\Contracts\Events\Asset\AssetReadyV1;
 use ProPhoto\Contracts\Events\Intelligence\AssetEmbeddingUpdated;
 use ProPhoto\Contracts\Events\Intelligence\AssetIntelligenceGenerated;
@@ -35,7 +36,8 @@ class IntelligenceEntryOrchestrator
     public function handleAssetReady(
         AssetReadyV1 $event,
         array $canonicalMetadata = [],
-        array $intelligenceConfig = []
+        array $intelligenceConfig = [],
+        ?SessionContextSnapshot $sessionContextSnapshot = null
     ): array {
         $existingRunSummaries = $this->runRepository->plannerRunSummariesForAsset($event->assetId);
 
@@ -45,7 +47,8 @@ class IntelligenceEntryOrchestrator
             generatorDescriptors: $this->generatorRegistry->descriptors(),
             intelligenceConfig: $intelligenceConfig,
             existingRunSummaries: $existingRunSummaries,
-            triggerSource: 'asset_ready'
+            triggerSource: 'asset_ready',
+            sessionContextSnapshot: $sessionContextSnapshot
         );
 
         foreach ($plannedIntents as $intent) {
@@ -53,7 +56,7 @@ class IntelligenceEntryOrchestrator
                 continue;
             }
 
-            $this->executePlannedIntent($event, $intent, $canonicalMetadata);
+            $this->executePlannedIntent($event, $intent, $canonicalMetadata, $sessionContextSnapshot);
         }
 
         return $plannedIntents;
@@ -65,7 +68,8 @@ class IntelligenceEntryOrchestrator
     protected function executePlannedIntent(
         AssetReadyV1 $event,
         PlannedIntelligenceRun $intent,
-        array $canonicalMetadata
+        array $canonicalMetadata,
+        ?SessionContextSnapshot $sessionContextSnapshot = null
     ): void {
         $generator = $this->generatorRegistry->resolve($intent->generator_type);
 
@@ -96,21 +100,11 @@ class IntelligenceEntryOrchestrator
         ));
 
         try {
-            $runContext = new IntelligenceRunContext(
-                assetId: $intent->asset_id,
+            $runContext = $this->buildRunContext(
+                event: $event,
+                intent: $intent,
                 runId: $runId,
-                generatorType: $intent->generator_type,
-                generatorVersion: $intent->generator_version,
-                modelName: $intent->model_name,
-                modelVersion: $intent->model_version,
-                runScope: $intent->run_scope,
-                configurationHash: $intent->configuration_hash,
-                metadataContext: [
-                    'asset_ready_status' => $event->status,
-                    'has_original' => $event->hasOriginal,
-                    'has_normalized_metadata' => $event->hasNormalizedMetadata,
-                    'has_derivatives' => $event->hasDerivatives,
-                ]
+                sessionContextSnapshot: $sessionContextSnapshot
             );
 
             $result = $this->executionService->execute($generator, $runContext, $canonicalMetadata);
@@ -131,6 +125,31 @@ class IntelligenceEntryOrchestrator
 
             throw $exception;
         }
+    }
+
+    protected function buildRunContext(
+        AssetReadyV1 $event,
+        PlannedIntelligenceRun $intent,
+        int|string $runId,
+        ?SessionContextSnapshot $sessionContextSnapshot = null
+    ): IntelligenceRunContext {
+        return new IntelligenceRunContext(
+            assetId: $intent->asset_id,
+            runId: $runId,
+            generatorType: $intent->generator_type,
+            generatorVersion: $intent->generator_version,
+            modelName: $intent->model_name,
+            modelVersion: $intent->model_version,
+            runScope: $intent->run_scope,
+            configurationHash: $intent->configuration_hash,
+            metadataContext: [
+                'asset_ready_status' => $event->status,
+                'has_original' => $event->hasOriginal,
+                'has_normalized_metadata' => $event->hasNormalizedMetadata,
+                'has_derivatives' => $event->hasDerivatives,
+            ],
+            sessionContextSnapshot: $sessionContextSnapshot
+        );
     }
 
     protected function assertResultSatisfiesIntent(GeneratorResult $result, PlannedIntelligenceRun $intent): void

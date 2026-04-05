@@ -7,6 +7,7 @@ use Illuminate\Support\ServiceProvider;
 use ProPhoto\Contracts\Events\Asset\AssetReadyV1;
 use ProPhoto\Intelligence\Generators\DemoEmbeddingGenerator;
 use ProPhoto\Intelligence\Generators\DemoTaggingGenerator;
+use ProPhoto\Intelligence\Generators\EventSceneTaggingGenerator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceExecutionService;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEmbeddingOrchestrator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEntryOrchestrator;
@@ -25,10 +26,12 @@ class IntelligenceServiceProvider extends ServiceProvider
         $this->app->singleton(IntelligencePersistenceService::class);
         $this->app->singleton(DemoTaggingGenerator::class);
         $this->app->singleton(DemoEmbeddingGenerator::class);
+        $this->app->singleton(EventSceneTaggingGenerator::class);
         $this->app->singleton(IntelligenceGeneratorRegistry::class, function ($app): IntelligenceGeneratorRegistry {
             return new IntelligenceGeneratorRegistry(
                 demoTaggingResolver: static fn () => $app->make(DemoTaggingGenerator::class),
-                demoEmbeddingResolver: static fn () => $app->make(DemoEmbeddingGenerator::class)
+                demoEmbeddingResolver: static fn () => $app->make(DemoEmbeddingGenerator::class),
+                eventSceneTaggingResolver: static fn () => $app->make(EventSceneTaggingGenerator::class)
             );
         });
         $this->app->singleton(IntelligencePlanner::class);

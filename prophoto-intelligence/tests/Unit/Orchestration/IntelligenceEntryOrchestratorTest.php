@@ -8,7 +8,13 @@ use ProPhoto\Contracts\DTOs\EmbeddingResult;
 use ProPhoto\Contracts\DTOs\GeneratorResult;
 use ProPhoto\Contracts\DTOs\IntelligenceRunContext;
 use ProPhoto\Contracts\DTOs\LabelResult;
+use ProPhoto\Contracts\DTOs\SessionContextSnapshot;
 use ProPhoto\Contracts\Enums\RunScope;
+use ProPhoto\Contracts\Enums\SessionAssociationLockState;
+use ProPhoto\Contracts\Enums\SessionAssociationSource;
+use ProPhoto\Contracts\Enums\SessionContextReliability;
+use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
+use ProPhoto\Contracts\Events\Asset\AssetReadyV1;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEntryOrchestrator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceExecutionService;
 use ProPhoto\Intelligence\Orchestration\IntelligencePersistenceService;
@@ -43,6 +49,113 @@ class IntelligenceEntryOrchestratorTest extends TestCase
             result: $this->resultWithLabelsAndEmbeddings(),
             intent: $this->plannedIntent(requiredOutputs: ['labels'])
         );
+    }
+
+    public function test_run_context_uses_same_snapshot_passed_into_planner(): void
+    {
+        $assetId = AssetId::from(88);
+        $sessionSnapshot = new SessionContextSnapshot(
+            assetId: $assetId,
+            sessionId: 'session_88',
+            bookingId: 'booking_88',
+            sessionStatus: 'confirmed',
+            sessionType: 'wedding',
+            jobType: 'wedding',
+            sessionTimezone: 'UTC',
+            sessionWindowStart: '2026-04-04T10:00:00Z',
+            sessionWindowEnd: '2026-04-04T12:00:00Z',
+            locationHint: 'Venue',
+            associationSource: SessionAssociationSource::MANUAL,
+            associationConfidenceTier: SessionMatchConfidenceTier::HIGH,
+            contextReliability: SessionContextReliability::HIGH,
+            manualLockState: SessionAssociationLockState::MANUAL_ASSIGNED_LOCK,
+            snapshotVersion: 1,
+            snapshotCapturedAt: '2026-04-04T09:59:00Z'
+        );
+        $plannedIntent = PlannedIntelligenceRun::planned(
+            assetId: $assetId,
+            generatorType: 'demo_tagging',
+            generatorVersion: 'v1',
+            modelName: 'demo-tag-model',
+            modelVersion: 'v1',
+            configurationHash: 'demo-hash',
+            runScope: RunScope::SINGLE_ASSET,
+            triggerSource: 'asset_ready',
+            requiredOutputs: ['labels']
+        );
+
+        $runRepository = $this->createMock(IntelligenceRunRepository::class);
+        $runRepository->expects($this->once())
+            ->method('plannerRunSummariesForAsset')
+            ->with($assetId)
+            ->willReturn([]);
+
+        $executionService = $this->createMock(IntelligenceExecutionService::class);
+        $persistenceService = $this->createMock(IntelligencePersistenceService::class);
+        $generatorRegistry = $this->createMock(IntelligenceGeneratorRegistry::class);
+        $planner = $this->createMock(IntelligencePlanner::class);
+
+        $planner->expects($this->once())
+            ->method('plan')
+            ->with(
+                $assetId,
+                ['mime_type' => 'image/jpeg'],
+                [],
+                [],
+                [],
+                'asset_ready',
+                RunScope::SINGLE_ASSET,
+                $sessionSnapshot
+            )
+            ->willReturn([$plannedIntent]);
+
+        $generatorRegistry->expects($this->once())
+            ->method('descriptors')
+            ->willReturn([]);
+
+        $orchestrator = new class(
+            $runRepository,
+            $executionService,
+            $persistenceService,
+            $generatorRegistry,
+            $planner
+        ) extends IntelligenceEntryOrchestrator {
+            public ?IntelligenceRunContext $capturedRunContext = null;
+
+            protected function executePlannedIntent(
+                AssetReadyV1 $event,
+                PlannedIntelligenceRun $intent,
+                array $canonicalMetadata,
+                ?SessionContextSnapshot $sessionContextSnapshot = null
+            ): void {
+                $this->capturedRunContext = $this->buildRunContext(
+                    event: $event,
+                    intent: $intent,
+                    runId: 999,
+                    sessionContextSnapshot: $sessionContextSnapshot
+                );
+            }
+        };
+
+        $event = new AssetReadyV1(
+            assetId: $assetId,
+            studioId: 101,
+            status: 'ready',
+            hasOriginal: true,
+            hasNormalizedMetadata: true,
+            hasDerivatives: true,
+            occurredAt: '2026-04-04T10:01:00Z'
+        );
+
+        $orchestrator->handleAssetReady(
+            event: $event,
+            canonicalMetadata: ['mime_type' => 'image/jpeg'],
+            intelligenceConfig: [],
+            sessionContextSnapshot: $sessionSnapshot
+        );
+
+        $this->assertInstanceOf(IntelligenceRunContext::class, $orchestrator->capturedRunContext);
+        $this->assertSame($sessionSnapshot, $orchestrator->capturedRunContext->sessionContextSnapshot);
     }
 
     private function plannedIntent(array $requiredOutputs): PlannedIntelligenceRun

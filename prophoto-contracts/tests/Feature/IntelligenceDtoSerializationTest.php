@@ -8,12 +8,36 @@ use ProPhoto\Contracts\DTOs\EmbeddingResult;
 use ProPhoto\Contracts\DTOs\GeneratorResult;
 use ProPhoto\Contracts\DTOs\IntelligenceRunContext;
 use ProPhoto\Contracts\DTOs\LabelResult;
+use ProPhoto\Contracts\DTOs\SessionContextSnapshot;
+use ProPhoto\Contracts\Enums\SessionAssociationLockState;
+use ProPhoto\Contracts\Enums\SessionAssociationSource;
 use ProPhoto\Contracts\Enums\RunScope;
+use ProPhoto\Contracts\Enums\SessionContextReliability;
+use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
 
 class IntelligenceDtoSerializationTest extends TestCase
 {
     public function test_intelligence_run_context_serializes_and_restores(): void
     {
+        $sessionContextSnapshot = new SessionContextSnapshot(
+            assetId: AssetId::from('asset_123'),
+            sessionId: 'session_42',
+            bookingId: 'booking_9',
+            sessionStatus: 'confirmed',
+            sessionType: 'ceremony',
+            jobType: 'wedding',
+            sessionTimezone: 'America/Los_Angeles',
+            sessionWindowStart: '2026-04-04T17:00:00Z',
+            sessionWindowEnd: '2026-04-04T19:00:00Z',
+            locationHint: 'City Hall',
+            associationSource: SessionAssociationSource::MANUAL,
+            associationConfidenceTier: SessionMatchConfidenceTier::HIGH,
+            contextReliability: SessionContextReliability::HIGH,
+            manualLockState: SessionAssociationLockState::MANUAL_ASSIGNED_LOCK,
+            snapshotVersion: 1,
+            snapshotCapturedAt: '2026-04-04T16:59:00Z'
+        );
+
         $dto = new IntelligenceRunContext(
             assetId: AssetId::from('asset_123'),
             runId: 'run_abc',
@@ -23,7 +47,8 @@ class IntelligenceDtoSerializationTest extends TestCase
             modelVersion: '2025-02',
             runScope: RunScope::BATCH,
             configurationHash: 'cfg_hash',
-            metadataContext: ['mime_type' => 'image/jpeg']
+            metadataContext: ['mime_type' => 'image/jpeg'],
+            sessionContextSnapshot: $sessionContextSnapshot
         );
 
         $restored = unserialize(serialize($dto));
@@ -38,6 +63,25 @@ class IntelligenceDtoSerializationTest extends TestCase
         $this->assertSame(RunScope::BATCH, $restored->runScope);
         $this->assertSame('cfg_hash', $restored->configurationHash);
         $this->assertSame(['mime_type' => 'image/jpeg'], $restored->metadataContext);
+        $this->assertInstanceOf(SessionContextSnapshot::class, $restored->sessionContextSnapshot);
+        $this->assertSame('session_42', (string) $restored->sessionContextSnapshot->sessionId);
+        $this->assertSame('wedding', $restored->sessionContextSnapshot->jobType);
+        $this->assertSame(
+            SessionContextReliability::HIGH,
+            $restored->sessionContextSnapshot->contextReliability
+        );
+        $this->assertSame(
+            SessionAssociationSource::MANUAL,
+            $restored->sessionContextSnapshot->associationSource
+        );
+        $this->assertSame(
+            SessionMatchConfidenceTier::HIGH,
+            $restored->sessionContextSnapshot->associationConfidenceTier
+        );
+        $this->assertSame(
+            SessionAssociationLockState::MANUAL_ASSIGNED_LOCK,
+            $restored->sessionContextSnapshot->manualLockState
+        );
     }
 
     public function test_label_result_serializes_and_restores(): void
@@ -135,5 +179,41 @@ class IntelligenceDtoSerializationTest extends TestCase
         $this->assertCount(1, $restored->labels);
         $this->assertCount(1, $restored->embeddings);
         $this->assertSame(['provider' => 'demo'], $restored->meta);
+    }
+
+    public function test_session_context_snapshot_serializes_and_restores(): void
+    {
+        $dto = new SessionContextSnapshot(
+            assetId: AssetId::from('asset_789'),
+            sessionId: 'session_21',
+            bookingId: 'booking_7',
+            sessionStatus: 'confirmed',
+            sessionType: 'engagement',
+            jobType: 'portrait',
+            sessionTimezone: 'UTC',
+            sessionWindowStart: '2026-04-04T10:00:00Z',
+            sessionWindowEnd: '2026-04-04T11:00:00Z',
+            locationHint: 'Pier 39',
+            associationSource: SessionAssociationSource::AUTO,
+            associationConfidenceTier: SessionMatchConfidenceTier::MEDIUM,
+            contextReliability: SessionContextReliability::MEDIUM,
+            manualLockState: SessionAssociationLockState::NONE,
+            snapshotVersion: 2,
+            snapshotCapturedAt: '2026-04-04T09:59:00Z'
+        );
+
+        $restored = unserialize(serialize($dto));
+
+        $this->assertInstanceOf(SessionContextSnapshot::class, $restored);
+        $this->assertSame('asset_789', $restored->assetId->toString());
+        $this->assertSame('session_21', (string) $restored->sessionId);
+        $this->assertSame('booking_7', (string) $restored->bookingId);
+        $this->assertSame('engagement', $restored->sessionType);
+        $this->assertSame('portrait', $restored->jobType);
+        $this->assertSame(SessionContextReliability::MEDIUM, $restored->contextReliability);
+        $this->assertSame(SessionAssociationSource::AUTO, $restored->associationSource);
+        $this->assertSame(SessionMatchConfidenceTier::MEDIUM, $restored->associationConfidenceTier);
+        $this->assertSame(SessionAssociationLockState::NONE, $restored->manualLockState);
+        $this->assertSame(2, $restored->snapshotVersion);
     }
 }

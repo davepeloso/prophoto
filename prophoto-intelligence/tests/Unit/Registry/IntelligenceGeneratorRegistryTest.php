@@ -15,7 +15,7 @@ class IntelligenceGeneratorRegistryTest extends TestCase
         $registry = new IntelligenceGeneratorRegistry();
         $descriptors = $registry->descriptors();
 
-        $this->assertCount(2, $descriptors);
+        $this->assertCount(3, $descriptors);
 
         $byType = [];
         foreach ($descriptors as $descriptor) {
@@ -24,6 +24,7 @@ class IntelligenceGeneratorRegistryTest extends TestCase
 
         $this->assertArrayHasKey('demo_tagging', $byType);
         $this->assertArrayHasKey('demo_embedding', $byType);
+        $this->assertArrayHasKey('event_scene_tagging', $byType);
 
         $this->assertSame('v1', $byType['demo_tagging']->generator_version);
         $this->assertSame(['labels'], $byType['demo_tagging']->produces_outputs);
@@ -36,6 +37,15 @@ class IntelligenceGeneratorRegistryTest extends TestCase
         $this->assertSame(['image'], $byType['demo_embedding']->supported_media_kinds);
         $this->assertSame('demo-embedding-model', $byType['demo_embedding']->default_model_name);
         $this->assertSame('v1', $byType['demo_embedding']->default_model_version);
+
+        $this->assertSame('v1', $byType['event_scene_tagging']->generator_version);
+        $this->assertSame(['labels'], $byType['event_scene_tagging']->produces_outputs);
+        $this->assertSame(['image'], $byType['event_scene_tagging']->supported_media_kinds);
+        $this->assertSame('event-scene-model', $byType['event_scene_tagging']->default_model_name);
+        $this->assertSame('v1', $byType['event_scene_tagging']->default_model_version);
+        $this->assertTrue($byType['event_scene_tagging']->requires_session_context);
+        $this->assertNotEmpty($byType['event_scene_tagging']->preferred_session_types);
+        $this->assertNotEmpty($byType['event_scene_tagging']->preferred_job_types);
     }
 
     public function test_resolve_returns_generator_implementation_by_type(): void
@@ -44,11 +54,14 @@ class IntelligenceGeneratorRegistryTest extends TestCase
 
         $tagging = $registry->resolve('demo_tagging');
         $embedding = $registry->resolve('demo_embedding');
+        $eventScene = $registry->resolve('event_scene_tagging');
 
         $this->assertInstanceOf(AssetIntelligenceGeneratorContract::class, $tagging);
         $this->assertInstanceOf(AssetIntelligenceGeneratorContract::class, $embedding);
+        $this->assertInstanceOf(AssetIntelligenceGeneratorContract::class, $eventScene);
         $this->assertSame('demo_tagging', $tagging->generatorType());
         $this->assertSame('demo_embedding', $embedding->generatorType());
+        $this->assertSame('event_scene_tagging', $eventScene->generatorType());
     }
 
     public function test_descriptor_throws_for_unknown_generator_type(): void
