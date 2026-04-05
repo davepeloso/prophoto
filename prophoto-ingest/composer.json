@@ -13,6 +13,10 @@
     "prophoto/assets": "@dev",
     "prophoto/booking": "@dev"
   },
+  "require-dev": {
+    "orchestra/testbench": "^9.0|^10.0",
+    "phpunit/phpunit": "^11.0"
+  },
   "autoload": {
     "psr-4": {
       "ProPhoto\\Ingest\\": "src/"
@@ -30,6 +34,18 @@
       ]
     }
   },
+  "scripts": {
+    "test": "vendor/bin/phpunit"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../prophoto-*",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
   "minimum-stability": "dev",
   "prefer-stable": true
 }
