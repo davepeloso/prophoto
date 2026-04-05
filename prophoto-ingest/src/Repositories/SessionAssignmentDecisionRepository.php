@@ -6,6 +6,7 @@ use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use ProPhoto\Contracts\Enums\SessionAssignmentDecisionType;
+use ProPhoto\Contracts\Enums\SessionAssignmentLockEffect;
 use ProPhoto\Contracts\Enums\SessionAssociationSubjectType;
 use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
 use RuntimeException;
@@ -101,6 +102,7 @@ class SessionAssignmentDecisionRepository
         $decisionType = $attributes['decision_type'] ?? null;
         $subjectType = $attributes['subject_type'] ?? null;
         $confidenceTier = $attributes['confidence_tier'] ?? null;
+        $lockEffect = $attributes['lock_effect'] ?? SessionAssignmentLockEffect::NONE;
 
         $evidencePayload = $attributes['evidence_payload'] ?? [];
         $rankedCandidatesPayload = $attributes['ranked_candidates_payload'] ?? null;
@@ -131,7 +133,9 @@ class SessionAssignmentDecisionRepository
             'calendar_context_state' => $attributes['calendar_context_state'] ?? null,
             'manual_override_reason_code' => $attributes['manual_override_reason_code'] ?? null,
             'manual_override_note' => $attributes['manual_override_note'] ?? null,
-            'lock_effect' => (string) ($attributes['lock_effect'] ?? 'none'),
+            'lock_effect' => $lockEffect instanceof SessionAssignmentLockEffect
+                ? $lockEffect->value
+                : (string) $lockEffect,
             'supersedes_decision_id' => $attributes['supersedes_decision_id'] ?? null,
             'idempotency_key' => $attributes['idempotency_key'] ?? null,
             'actor_type' => (string) ($attributes['actor_type'] ?? 'system'),
@@ -190,4 +194,3 @@ class SessionAssignmentDecisionRepository
         return json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
     }
 }
-

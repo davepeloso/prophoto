@@ -6,6 +6,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use ProPhoto\Contracts\Enums\SessionAssignmentDecisionType;
+use ProPhoto\Contracts\Enums\SessionAssignmentLockEffect;
+use ProPhoto\Contracts\Enums\SessionAssociationLockState;
 use ProPhoto\Contracts\Enums\SessionAssociationSubjectType;
 use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
 use ProPhoto\Contracts\Events\Ingest\SessionAutoAssignmentApplied;
@@ -81,7 +83,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'session_id' => 5001,
             'effective_state' => 'assigned',
             'assignment_mode' => 'auto',
-            'manual_lock_state' => 'none',
+            'manual_lock_state' => SessionAssociationLockState::NONE,
             'source_decision_id' => $firstDecision['id'],
             'confidence_tier' => SessionMatchConfidenceTier::HIGH,
             'confidence_score' => 0.97,
@@ -106,7 +108,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'session_id' => 5002,
             'effective_state' => 'assigned',
             'assignment_mode' => 'manual',
-            'manual_lock_state' => 'manual_assigned_lock',
+            'manual_lock_state' => SessionAssociationLockState::MANUAL_ASSIGNED_LOCK,
             'source_decision_id' => $secondDecision['id'],
             'confidence_tier' => null,
             'confidence_score' => null,
@@ -141,7 +143,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'confidence_score' => null,
             'trigger_source' => 'manual_override',
             'manual_override_reason_code' => 'operator_verified',
-            'lock_effect' => 'lock_assigned',
+            'lock_effect' => SessionAssignmentLockEffect::LOCK_ASSIGNED,
             'actor_type' => 'user',
             'actor_id' => 'user_1',
         ]));
@@ -151,7 +153,7 @@ class SessionAssociationWriteServiceTest extends TestCase
         $this->assertNotNull($result['assignment']);
         $this->assertSame('assigned', $result['assignment']['effective_state']);
         $this->assertSame('manual', $result['assignment']['assignment_mode']);
-        $this->assertSame('manual_assigned_lock', $result['assignment']['manual_lock_state']);
+        $this->assertSame(SessionAssociationLockState::MANUAL_ASSIGNED_LOCK->value, $result['assignment']['manual_lock_state']);
 
         Event::assertDispatched(SessionManualAssignmentApplied::class);
     }
@@ -168,7 +170,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'confidence_score' => null,
             'trigger_source' => 'manual_override',
             'manual_override_reason_code' => 'wrong_session',
-            'lock_effect' => 'lock_unassigned',
+            'lock_effect' => SessionAssignmentLockEffect::LOCK_UNASSIGNED,
             'actor_type' => 'user',
             'actor_id' => 'user_2',
         ]));
@@ -177,7 +179,7 @@ class SessionAssociationWriteServiceTest extends TestCase
         $this->assertNotNull($result['assignment']);
         $this->assertSame('unassigned', $result['assignment']['effective_state']);
         $this->assertNull($result['assignment']['session_id']);
-        $this->assertSame('manual_unassigned_lock', $result['assignment']['manual_lock_state']);
+        $this->assertSame(SessionAssociationLockState::MANUAL_UNASSIGNED_LOCK->value, $result['assignment']['manual_lock_state']);
 
         Event::assertDispatched(SessionManualUnassignmentApplied::class);
     }
@@ -193,7 +195,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'confidence_tier' => null,
             'confidence_score' => null,
             'trigger_source' => 'manual_override',
-            'lock_effect' => 'lock_assigned',
+            'lock_effect' => SessionAssignmentLockEffect::LOCK_ASSIGNED,
             'actor_type' => 'user',
             'actor_id' => 'user_3',
         ]));
@@ -205,7 +207,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'confidence_tier' => SessionMatchConfidenceTier::HIGH,
             'confidence_score' => 0.95,
             'trigger_source' => 'ingest_batch',
-            'lock_effect' => 'none',
+            'lock_effect' => SessionAssignmentLockEffect::NONE,
             'actor_type' => 'system',
             'actor_id' => null,
         ]));
@@ -215,7 +217,7 @@ class SessionAssociationWriteServiceTest extends TestCase
 
         $current = $this->assignmentRepository->findCurrentBySubject(SessionAssociationSubjectType::ASSET, '101');
         $this->assertNotNull($current);
-        $this->assertSame('manual_assigned_lock', $current['manual_lock_state']);
+        $this->assertSame(SessionAssociationLockState::MANUAL_ASSIGNED_LOCK->value, $current['manual_lock_state']);
         $this->assertSame(5001, (int) $current['session_id']);
 
         $decisions = $this->decisionRepository->findBySubject(SessionAssociationSubjectType::ASSET, '101');
@@ -258,6 +260,116 @@ class SessionAssociationWriteServiceTest extends TestCase
         Event::assertNotDispatched(SessionAutoAssignmentApplied::class);
         Event::assertNotDispatched(SessionManualAssignmentApplied::class);
         Event::assertNotDispatched(SessionManualUnassignmentApplied::class);
+    }
+
+    public function test_auto_assign_supersedes_prior_auto_assignment_via_write_service(): void
+    {
+        $this->fakeEventsAndRebuildWriteService();
+
+        $first = $this->writeService->writeDecision($this->decisionPayload([
+            'idempotency_key' => 'supersede-e2e-1',
+            'selected_session_id' => 5001,
+        ]));
+
+        $this->assertTrue($first['assignment_written']);
+        $firstAssignment = $first['assignment'];
+
+        $second = $this->writeService->writeDecision($this->decisionPayload([
+            'idempotency_key' => 'supersede-e2e-2',
+            'selected_session_id' => 5002,
+        ]));
+
+        $this->assertTrue($second['assignment_written']);
+        $secondAssignment = $second['assignment'];
+
+        // Old row must be superseded and linked forward.
+        $oldRefreshed = $this->assignmentRepository->findById($firstAssignment['id']);
+        $this->assertNotNull($oldRefreshed['superseded_at']);
+        $this->assertSame($secondAssignment['id'], (int) $oldRefreshed['superseded_by_assignment_id']);
+
+        // New row is current.
+        $current = $this->assignmentRepository->findCurrentBySubject(SessionAssociationSubjectType::ASSET, '101');
+        $this->assertNotNull($current);
+        $this->assertSame($secondAssignment['id'], $current['id']);
+        $this->assertNull($current['superseded_at']);
+        $this->assertSame(5002, (int) $current['session_id']);
+    }
+
+    public function test_manual_unassigned_lock_blocks_auto_assign(): void
+    {
+        $this->fakeEventsAndRebuildWriteService();
+
+        // Seed with manual_unassign lock.
+        $this->writeService->writeDecision($this->decisionPayload([
+            'decision_type' => SessionAssignmentDecisionType::MANUAL_UNASSIGN,
+            'idempotency_key' => 'manual-unassign-lock-seed',
+            'selected_session_id' => null,
+            'confidence_tier' => null,
+            'confidence_score' => null,
+            'trigger_source' => 'manual_override',
+            'manual_override_reason_code' => 'wrong_session',
+            'lock_effect' => SessionAssignmentLockEffect::LOCK_UNASSIGNED,
+            'actor_type' => 'user',
+            'actor_id' => 'user_10',
+        ]));
+
+        // Attempt auto_assign — should be blocked.
+        $result = $this->writeService->writeDecision($this->decisionPayload([
+            'decision_type' => SessionAssignmentDecisionType::AUTO_ASSIGN,
+            'idempotency_key' => 'auto-after-unassign-lock',
+            'selected_session_id' => 5002,
+            'confidence_tier' => SessionMatchConfidenceTier::HIGH,
+            'confidence_score' => 0.95,
+            'trigger_source' => 'ingest_batch',
+            'lock_effect' => SessionAssignmentLockEffect::NONE,
+            'actor_type' => 'system',
+            'actor_id' => null,
+        ]));
+
+        $this->assertFalse($result['assignment_written']);
+        $this->assertTrue($result['skipped_by_manual_lock']);
+
+        // Current row still has the unassigned lock.
+        $current = $this->assignmentRepository->findCurrentBySubject(SessionAssociationSubjectType::ASSET, '101');
+        $this->assertNotNull($current);
+        $this->assertSame(SessionAssociationLockState::MANUAL_UNASSIGNED_LOCK->value, $current['manual_lock_state']);
+        $this->assertSame('unassigned', $current['effective_state']);
+
+        // Decision was still recorded.
+        $decisions = $this->decisionRepository->findBySubject(SessionAssociationSubjectType::ASSET, '101');
+        $this->assertCount(2, $decisions);
+
+        Event::assertNotDispatched(SessionAutoAssignmentApplied::class);
+    }
+
+    public function test_idempotency_key_prevents_duplicate_decisions(): void
+    {
+        $this->fakeEventsAndRebuildWriteService();
+
+        $first = $this->writeService->writeDecision($this->decisionPayload([
+            'idempotency_key' => 'idempotent-test-1',
+            'selected_session_id' => 5001,
+        ]));
+
+        $this->assertFalse($first['idempotent']);
+        $this->assertTrue($first['assignment_written']);
+
+        // Same idempotency key — should return existing, no new rows.
+        $second = $this->writeService->writeDecision($this->decisionPayload([
+            'idempotency_key' => 'idempotent-test-1',
+            'selected_session_id' => 9999, // different session — should be ignored
+        ]));
+
+        $this->assertTrue($second['idempotent']);
+        $this->assertFalse($second['assignment_written']);
+        $this->assertSame($first['decision']['id'], $second['decision']['id']);
+
+        // Only 1 decision row exists.
+        $decisions = $this->decisionRepository->findBySubject(SessionAssociationSubjectType::ASSET, '101');
+        $this->assertCount(1, $decisions);
+
+        // Only 1 assignment row exists.
+        $this->assertSame(1, DB::table('asset_session_assignments')->where('subject_id', '101')->count());
     }
 
     public function test_no_event_is_emitted_when_transaction_fails(): void
@@ -313,7 +425,7 @@ class SessionAssociationWriteServiceTest extends TestCase
             'calendar_context_state' => 'normal',
             'manual_override_reason_code' => null,
             'manual_override_note' => null,
-            'lock_effect' => 'none',
+            'lock_effect' => SessionAssignmentLockEffect::NONE,
             'supersedes_decision_id' => null,
             'idempotency_key' => null,
             'actor_type' => 'system',
