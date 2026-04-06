@@ -1,0 +1,49 @@
+{
+    "name": "prophoto/audit",
+    "description": "Activity logging and audit trail system for ProPhoto",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "ProPhoto",
+            "email": "dev@prophoto.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/events": "^11.0|^12.0",
+        "prophoto/contracts": "@dev",
+        "prophoto/tenancy": "@dev"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "pestphp/pest": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ProPhoto\\Audit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProPhoto\\Audit\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ProPhoto\\Audit\\AuditServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
