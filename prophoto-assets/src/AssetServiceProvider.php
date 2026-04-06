@@ -3,6 +3,8 @@
 namespace ProPhoto\Assets;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
+use ProPhoto\Assets\Listeners\HandleSessionAssociationResolved;
 use ProPhoto\Assets\Console\Commands\RenormalizeAssetsMetadataCommand;
 use ProPhoto\Assets\Repositories\EloquentAssetRepository;
 use ProPhoto\Assets\Services\Assets\AssetCreationService;
@@ -19,6 +21,7 @@ use ProPhoto\Contracts\Contracts\Asset\SignedUrlGeneratorContract;
 use ProPhoto\Contracts\Contracts\Metadata\AssetMetadataExtractorContract;
 use ProPhoto\Contracts\Contracts\Metadata\AssetMetadataNormalizerContract;
 use ProPhoto\Contracts\Contracts\Metadata\AssetMetadataRepositoryContract;
+use ProPhoto\Contracts\Events\Ingest\SessionAssociationResolved;
 
 class AssetServiceProvider extends ServiceProvider
 {
@@ -40,6 +43,7 @@ class AssetServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        Event::listen(SessionAssociationResolved::class, HandleSessionAssociationResolved::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([

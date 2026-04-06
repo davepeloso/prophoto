@@ -6,7 +6,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use ProPhoto\Contracts\DTOs\GeneratorResult;
 use ProPhoto\Contracts\DTOs\IntelligenceRunContext;
+use ProPhoto\Contracts\DTOs\AssetId;
 use ProPhoto\Contracts\DTOs\SessionContextSnapshot;
+use ProPhoto\Contracts\Enums\SessionAssociationLockState;
+use ProPhoto\Contracts\Enums\SessionAssociationSource;
+use ProPhoto\Contracts\Enums\SessionContextReliability;
+use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
 use ProPhoto\Contracts\Events\Asset\AssetReadyV1;
 use ProPhoto\Contracts\Events\Intelligence\AssetEmbeddingUpdated;
 use ProPhoto\Contracts\Events\Intelligence\AssetIntelligenceGenerated;
@@ -37,7 +42,8 @@ class IntelligenceEntryOrchestrator
         AssetReadyV1 $event,
         array $canonicalMetadata = [],
         array $intelligenceConfig = [],
-        ?SessionContextSnapshot $sessionContextSnapshot = null
+        ?SessionContextSnapshot $sessionContextSnapshot = null,
+        string $triggerSource = 'asset_ready'
     ): array {
         $existingRunSummaries = $this->runRepository->plannerRunSummariesForAsset($event->assetId);
 
@@ -47,7 +53,7 @@ class IntelligenceEntryOrchestrator
             generatorDescriptors: $this->generatorRegistry->descriptors(),
             intelligenceConfig: $intelligenceConfig,
             existingRunSummaries: $existingRunSummaries,
-            triggerSource: 'asset_ready',
+            triggerSource: $triggerSource,
             sessionContextSnapshot: $sessionContextSnapshot
         );
 
@@ -60,6 +66,67 @@ class IntelligenceEntryOrchestrator
         }
 
         return $plannedIntents;
+    }
+
+    /**
+     * @param array<string, mixed> $canonicalMetadata
+     * @param array<string, mixed> $intelligenceConfig
+     * @return list<PlannedIntelligenceRun>
+     */
+    public function handleAssetSessionContextAttached(
+        int|string $assetId,
+        int|string $sessionId,
+        string $triggerSource = 'asset_session_context',
+        array $canonicalMetadata = [],
+        array $intelligenceConfig = []
+    ): array {
+        $asset = AssetId::from($assetId);
+
+        $sessionContextSnapshot = new SessionContextSnapshot(
+            assetId: $asset,
+            sessionId: $sessionId,
+            associationSource: SessionAssociationSource::AUTO,
+            associationConfidenceTier: SessionMatchConfidenceTier::HIGH,
+            contextReliability: SessionContextReliability::HIGH,
+            manualLockState: SessionAssociationLockState::NONE,
+            snapshotVersion: 1,
+            snapshotCapturedAt: now('UTC')->toIso8601String()
+        );
+
+        $event = new AssetReadyV1(
+            assetId: $asset,
+            // Placeholder studio id for the internal shim path from asset context attachment.
+            studioId: 0,
+            status: 'ready',
+            hasOriginal: true,
+            hasNormalizedMetadata: true,
+            hasDerivatives: true,
+            occurredAt: now()->toIso8601String()
+        );
+
+        $defaultMediaKind = (string) config(
+            'intelligence.entry_orchestrator_default_media_kind',
+            (string) config(
+                'prophoto-intelligence.entry_orchestrator_default_media_kind',
+                (string) env('INTELLIGENCE_ENTRY_ORCHESTRATOR_DEFAULT_MEDIA_KIND', 'image')
+            )
+        );
+
+        $resolvedCanonicalMetadata = array_merge(
+            [
+                'media_kind' => $defaultMediaKind,
+                'is_ready_for_intelligence' => true,
+            ],
+            $canonicalMetadata
+        );
+
+        return $this->handleAssetReady(
+            event: $event,
+            canonicalMetadata: $resolvedCanonicalMetadata,
+            intelligenceConfig: $intelligenceConfig,
+            sessionContextSnapshot: $sessionContextSnapshot,
+            triggerSource: $triggerSource
+        );
     }
 
     /**

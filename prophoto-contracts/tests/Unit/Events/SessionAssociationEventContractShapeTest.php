@@ -3,12 +3,14 @@
 namespace ProPhoto\Contracts\Tests\Unit\Events;
 
 use PHPUnit\Framework\TestCase;
+use ProPhoto\Contracts\Enums\SessionAssignmentDecisionType;
 use ProPhoto\Contracts\Enums\SessionAssociationLockState;
 use ProPhoto\Contracts\Enums\SessionAssociationSubjectType;
 use ProPhoto\Contracts\Enums\SessionMatchConfidenceTier;
 use ProPhoto\Contracts\Events\Ingest\SessionAutoAssignmentApplied;
 use ProPhoto\Contracts\Events\Ingest\SessionManualAssignmentApplied;
 use ProPhoto\Contracts\Events\Ingest\SessionManualUnassignmentApplied;
+use ProPhoto\Contracts\Events\Ingest\SessionAssociationResolved;
 use ProPhoto\Contracts\Events\Ingest\SessionMatchProposalCreated;
 use ReflectionNamedType;
 use ReflectionType;
@@ -73,10 +75,25 @@ class SessionAssociationEventContractShapeTest extends TestCase
             ['occurredAt', 'string'],
         ];
 
+        $resolvedExpected = [
+            ['decisionId', 'int|string'],
+            ['decisionType', 'ProPhoto\Contracts\Enums\SessionAssignmentDecisionType'],
+            ['subjectType', 'ProPhoto\Contracts\Enums\SessionAssociationSubjectType'],
+            ['subjectId', 'string'],
+            ['ingestItemId', 'int|null|string'],
+            ['assetId', 'int|null|string'],
+            ['selectedSessionId', 'int|null|string'],
+            ['confidenceTier', 'ProPhoto\Contracts\Enums\SessionMatchConfidenceTier|null'],
+            ['confidenceScore', 'float|null'],
+            ['algorithmVersion', 'string'],
+            ['occurredAt', 'string'],
+        ];
+
         $this->assertEventSignature(SessionAutoAssignmentApplied::class, $autoAssignmentExpected);
         $this->assertEventSignature(SessionMatchProposalCreated::class, $proposalExpected);
         $this->assertEventSignature(SessionManualAssignmentApplied::class, $manualAssignmentExpected);
         $this->assertEventSignature(SessionManualUnassignmentApplied::class, $manualUnassignmentExpected);
+        $this->assertEventSignature(SessionAssociationResolved::class, $resolvedExpected);
     }
 
     public function test_session_association_events_are_json_serializable_with_scalar_and_enum_payloads(): void
@@ -131,6 +148,19 @@ class SessionAssociationEventContractShapeTest extends TestCase
                 lockState: SessionAssociationLockState::MANUAL_UNASSIGNED_LOCK,
                 manualOverrideReasonCode: 'wrong_session',
                 actorId: 'user_23',
+                occurredAt: '2026-04-04T18:00:00Z'
+            ),
+            new SessionAssociationResolved(
+                decisionId: 'decision_5',
+                decisionType: SessionAssignmentDecisionType::PROPOSE,
+                subjectType: SessionAssociationSubjectType::INGEST_ITEM,
+                subjectId: 'ing_1000',
+                ingestItemId: 'ing_1000',
+                assetId: null,
+                selectedSessionId: 'session_5',
+                confidenceTier: SessionMatchConfidenceTier::MEDIUM,
+                confidenceScore: 0.58,
+                algorithmVersion: 'v1',
                 occurredAt: '2026-04-04T18:00:00Z'
             ),
         ];

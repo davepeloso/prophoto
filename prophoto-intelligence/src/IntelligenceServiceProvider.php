@@ -3,11 +3,13 @@
 namespace ProPhoto\Intelligence;
 
 use Illuminate\Support\Facades\Event;
+use ProPhoto\Assets\Events\AssetSessionContextAttached;
 use Illuminate\Support\ServiceProvider;
 use ProPhoto\Contracts\Events\Asset\AssetReadyV1;
 use ProPhoto\Intelligence\Generators\DemoEmbeddingGenerator;
 use ProPhoto\Intelligence\Generators\DemoTaggingGenerator;
 use ProPhoto\Intelligence\Generators\EventSceneTaggingGenerator;
+use ProPhoto\Intelligence\Listeners\HandleAssetSessionContextAttached;
 use ProPhoto\Intelligence\Orchestration\IntelligenceExecutionService;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEmbeddingOrchestrator;
 use ProPhoto\Intelligence\Orchestration\IntelligenceEntryOrchestrator;
@@ -111,5 +113,7 @@ class IntelligenceServiceProvider extends ServiceProvider
             $this->app->make(IntelligenceOrchestrator::class)->handleAssetReady($event);
             $this->app->make(IntelligenceEmbeddingOrchestrator::class)->handleAssetReady($event);
         });
+
+        Event::listen(AssetSessionContextAttached::class, HandleAssetSessionContextAttached::class);
     }
 }

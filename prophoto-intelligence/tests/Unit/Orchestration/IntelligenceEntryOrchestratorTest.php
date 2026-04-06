@@ -158,6 +158,69 @@ class IntelligenceEntryOrchestratorTest extends TestCase
         $this->assertSame($sessionSnapshot, $orchestrator->capturedRunContext->sessionContextSnapshot);
     }
 
+    public function test_asset_session_context_trigger_passes_non_null_snapshot_to_planner(): void
+    {
+        $assetId = AssetId::from(144);
+
+        $runRepository = $this->createMock(IntelligenceRunRepository::class);
+        $runRepository->expects($this->once())
+            ->method('plannerRunSummariesForAsset')
+            ->with($assetId)
+            ->willReturn([]);
+
+        $executionService = $this->createMock(IntelligenceExecutionService::class);
+        $persistenceService = $this->createMock(IntelligencePersistenceService::class);
+        $generatorRegistry = $this->createMock(IntelligenceGeneratorRegistry::class);
+        $planner = $this->createMock(IntelligencePlanner::class);
+
+        $planner->expects($this->once())
+            ->method('plan')
+            ->with(
+                $assetId,
+                [
+                    'media_kind' => 'image',
+                    'is_ready_for_intelligence' => true,
+                ],
+                [],
+                [],
+                [],
+                'asset_session_context',
+                RunScope::SINGLE_ASSET,
+                $this->callback(function (mixed $snapshot): bool {
+                    if (! $snapshot instanceof SessionContextSnapshot) {
+                        return false;
+                    }
+
+                    return $snapshot->sessionId === 8801
+                        && $snapshot->associationSource === SessionAssociationSource::AUTO
+                        && $snapshot->associationConfidenceTier === SessionMatchConfidenceTier::HIGH
+                        && $snapshot->contextReliability === SessionContextReliability::HIGH
+                        && $snapshot->manualLockState === SessionAssociationLockState::NONE
+                        && $snapshot->snapshotVersion === 1
+                        && is_string($snapshot->snapshotCapturedAt)
+                        && $snapshot->snapshotCapturedAt !== '';
+                })
+            )
+            ->willReturn([]);
+
+        $generatorRegistry->expects($this->once())
+            ->method('descriptors')
+            ->willReturn([]);
+
+        $orchestrator = new IntelligenceEntryOrchestrator(
+            $runRepository,
+            $executionService,
+            $persistenceService,
+            $generatorRegistry,
+            $planner
+        );
+
+        $orchestrator->handleAssetSessionContextAttached(
+            assetId: 144,
+            sessionId: 8801
+        );
+    }
+
     private function plannedIntent(array $requiredOutputs): PlannedIntelligenceRun
     {
         return PlannedIntelligenceRun::planned(
