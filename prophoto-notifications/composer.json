@@ -9,8 +9,7 @@
         "illuminate/support": "^11.0|^12.0",
         "illuminate/mail": "^11.0|^12.0",
         "illuminate/notifications": "^11.0|^12.0",
-        "prophoto/contracts": "@dev",
-        "prophoto/tenancy": "@dev"
+        "prophoto/contracts": "@dev"
     },
     "require-dev": {"orchestra/testbench": "^9.0", "pestphp/pest": "^2.0"},
     "autoload": {"psr-4": {"ProPhoto\\Notifications\\": "src/"}},
