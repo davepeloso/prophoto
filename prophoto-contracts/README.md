@@ -1,43 +1,60 @@
 # ProPhoto Contracts
 
-This package contains shared interfaces, DTOs, enums, and contracts for the ProPhoto ecosystem.
-
 ## Purpose
 
-The contracts package serves as the single source of truth for:
+Shared kernel for the entire ProPhoto system. Defines all cross-package interfaces, DTOs, enums, events, and exceptions. Every package in the system depends on this package. This package depends on nothing. It is the only package that may be imported by every other package without creating a dependency violation.
 
-- **Interfaces**: Service boundaries and abstractions
-- **DTOs**: Data transfer objects for cross-package communication
-- **Enums**: Shared vocabulary and constants
-- **Exceptions**: Common exception types
+## Core Loop Role
 
-## Dependency Rule
+Contracts does not participate in the event loop directly — it **defines** it. The load-bearing events that power the core loop are declared here:
 
-**Domain packages may depend on prophoto-contracts, but prophoto-contracts must never depend on domain packages.**
+```
+prophoto-ingest  →  SessionAssociationResolved        (Events/Ingest/)
+prophoto-assets  →  AssetReadyV1                      (Events/Asset/)
+prophoto-assets  →  AssetSessionContextAttached        (declared in prophoto-assets, not here)
+prophoto-intelligence  →  AssetIntelligenceGenerated   (Events/Intelligence/)
+```
 
-This ensures:
-- Clean architecture
-- No circular dependencies
-- Clear package boundaries
-- Easy testing and mocking
+If this package is removed, every cross-package contract, event, DTO, and enum ceases to exist. The entire system stops compiling.
 
-## What Belongs Here
+## Responsibilities
 
-### ✅ Include:
-- Service interfaces
-- Data transfer objects
-- Enums and constants
-- Event contracts
-- Shared exception types
+- All cross-package event contracts (Ingest, Asset, Intelligence namespaces)
+- All shared DTOs: AssetId, SessionContextSnapshot, IntelligenceRunContext, GeneratorResult, IngestRequest, and 16 others
+- All shared enums: SessionAssignmentMode, SessionMatchConfidenceTier, RunStatus, AssetType, and 11 others
+- All service interfaces: AssetRepositoryContract, IngestServiceContract, AssetIntelligenceGeneratorContract, and 11 others
+- All shared exception types: AssetNotFoundException, MetadataReadFailedException, PermissionDeniedException
 
-### ❌ Exclude:
-- Eloquent models
-- Migrations
-- Controllers/routes
-- Service providers with business logic
-- Implementation details
-- Database-specific code
+## Non-Responsibilities
 
-## Versioning
+- MUST NOT depend on any other package — zero composer dependencies on prophoto/* packages
+- MUST NOT contain Eloquent models, migrations, or database-specific code
+- MUST NOT contain controllers, routes, or service providers with business logic
+- MUST NOT contain implementation details — only interfaces and data structures
+- MUST NOT be treated as a dumping ground for convenience code
 
-Treat this package as slow-moving and stable. Avoid breaking changes when possible.
+## Integration Points
+
+- **Events listened to:** None (defines events, does not consume them)
+- **Events emitted:** None (defines event classes, does not dispatch them)
+- **Contracts depended on:** None (this IS the contracts package)
+- **Depended on by:** Every package in the system
+
+## Data Ownership
+
+This package owns no tables and no persistent state. It defines the shapes of data that other packages own.
+
+| Artifact | Count | Purpose |
+|---|---|---|
+| Interfaces | 14 | Service boundaries across packages |
+| DTOs | 21 | Cross-package data transfer objects |
+| Enums | 15 | Shared vocabulary and constants |
+| Event contracts | 14 | Ingest (5), Asset (6), Intelligence (3) |
+| Exceptions | 3 | Shared exception types |
+
+## Notes
+
+- Treat this package as slow-moving and stable. Breaking changes here ripple across the entire system.
+- Events carry IDs, not models. Events are immutable. Events are versioned if changed. These rules are defined in SYSTEM.md.
+- The SessionContextSnapshot DTO is the canonical way intelligence receives session context — intelligence MUST NOT query booking directly.
+- This package has 8 test files covering enum coverage, DTO serialization, event contract shapes, and interface signatures.

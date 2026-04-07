@@ -1,64 +1,46 @@
 # ProPhoto AI
 
-AI orchestration for ProPhoto providing model training, portrait generation, quotas, and cost tracking.
-
 ## Purpose
 
-Manages AI portrait generation lifecycle:
-- Train custom models per subject
-- Generate AI portraits on demand
-- Rate limiting and quota management
-- Cost tracking per generation
-- Provider abstraction (Stability AI, Midjourney, etc.)
+AI portrait generation package. Manages the lifecycle of training custom AI models from subject photos and generating AI portraits on demand. This is a feature-level package for a specific client-facing capability — it is entirely separate from prophoto-intelligence, which handles backend AI orchestration (tagging, embeddings, scene detection) as part of the core ingest loop.
 
-## Key Features
+## Responsibilities
 
-### Model Training
-- Upload 10-20 training images
-- Validation (quality, variety, face detection)
-- Train job submission to AI provider
-- Webhook/polling for completion
-- Model storage and versioning
+- AiGeneration model (training runs linked to galleries)
+- AiGenerationRequest model (individual generation requests from subjects)
+- AiGeneratedPortrait model (generated portrait outputs)
+- Training job lifecycle: image selection → validation → provider submission → completion
+- Generation request lifecycle: prompt → queue → result → storage
+- Quota tracking per subject/gallery/studio
+- Cost attribution per training and generation
 
-### Generation Requests
-- Subject selects style/prompt
-- Queue job to AI provider
-- Progress tracking
-- Result storage in gallery
-- Cost attribution
+## Non-Responsibilities
 
-### Quota Management
-- Per-subject generation limits
-- Per-gallery limits
-- Studio-wide limits
-- Quota reset schedules
-- Overage handling
+- Does NOT own intelligence orchestration — tagging, embeddings, and scene detection are prophoto-intelligence
+- Does NOT own asset truth — generated portraits reference galleries, not raw assets
+- Does NOT own gallery models — depends on prophoto-gallery for Gallery
+- Does NOT participate in the ingest → assets → intelligence event loop
+- Does NOT mutate ingest, asset, or booking state
+- Does NOT own permissions — uses permission constants from prophoto-access
 
-### Cost Tracking
-- Track cost per training ($5-$20)
-- Track cost per generation ($0.10-$1.00)
-- Aggregate by org/gallery/studio
-- Export for billing
+## Integration Points
 
-## Configuration
+- **Events listened to:** None currently
+- **Events emitted:** None currently (future: AiTrainingCompleted, AiGenerationCompleted)
+- **Contracts depended on:** `prophoto/contracts` (shared DTOs/enums)
+- **Model relationships:** AiGeneration→Gallery (belongs to), Gallery→AiGeneration (has many, defined in prophoto-gallery)
 
-```php
-return [
-    'provider' => 'stability', // stability, midjourney
-    'quotas' => [
-        'generations_per_subject' => 100,
-        'generations_per_gallery' => 1000,
-    ],
-    'costs' => [
-        'training' => 15.00, // USD
-        'generation' => 0.50, // USD per image
-    ],
-];
-```
+## Data Ownership
 
-## Dependencies
+| Table | Model | Purpose |
+|---|---|---|
+| `ai_generations` | AiGeneration | Training runs linked to galleries |
+| `ai_generation_requests` | AiGenerationRequest | Individual generation requests |
+| `ai_generated_portraits` | AiGeneratedPortrait | Generated portrait outputs |
 
-- `prophoto/contracts` - AI contracts
-- `prophoto/galleries` - Store generated images
-- `prophoto/settings` - Feature flags
+## Notes
 
+- ServiceProvider is declared in composer.json (`ProPhoto\AI\AIServiceProvider`) but the file does not yet exist — needs implementation
+- This package has a bidirectional model relationship with prophoto-gallery (Gallery↔AiGeneration) — this is intentional but should not expand further
+- Completely distinct from prophoto-intelligence: AI here means client-facing portrait generation; intelligence means backend asset analysis
+- Composer currently requires `prophoto/galleries` (plural) — this is a bug. The correct package name is `prophoto/gallery`. The `composer.json` dependency must be corrected before this package can be installed.

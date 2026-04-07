@@ -1,56 +1,41 @@
 # ProPhoto Notifications
 
-Notification system for ProPhoto handling email delivery, templates, preferences, and delivery tracking.
-
 ## Purpose
 
-Centralized notification management where:
-- All packages send notifications through this system
-- Template-based emails with branding
-- User preferences (opt-in/opt-out per type)
-- Delivery tracking and retry logic
-- Multi-channel support (email, SMS, push - email first)
+Centralized notification delivery for the ProPhoto system. Owns the Message model for tracking notification state and delivery. This package is intended to listen to domain events from other packages and translate them into user-facing notifications (email initially, multi-channel later). It does not own domain logic — it reacts to events and delivers messages.
 
-## Key Features
+## Responsibilities
 
-- Event-driven (listens to domain events)
-- Queueable for performance
-- Template inheritance (studio branding)
-- Delivery logs and failure tracking
-- User preferences per notification type
-- Rate limiting (prevent spam)
+- Message model (notification records scoped to studio, referencing galleries and images)
+- Notification delivery tracking (sent, delivered, failed, retried)
+- Template-based email rendering with studio branding
+- User notification preferences (opt-in/opt-out per notification type)
+- Rate limiting to prevent notification spam
 
-## Email Templates
+## Non-Responsibilities
 
-- `GalleryReadyNotification` - Gallery shared with subject
-- `BookingConfirmedNotification` - Booking confirmed
-- `InvoiceSentNotification` - Invoice generated
-- `InvoicePaidNotification` - Payment received
-- `DownloadReadyNotification` - ZIP ready
-- `EditRequestNotification` - Edit request received
-- `MarketingApprovalReminderNotification` - Reminder to approve images
-- `MagicLinkNotification` - Passwordless access link
+- Does NOT own galleries, images, bookings, invoices, or any domain models — references them via foreign keys only
+- Does NOT own studio or organization models — depends on prophoto-access for Studio
+- Does NOT define domain events — listens to events defined in other packages or prophoto-contracts
+- Does NOT participate in the ingest → assets → intelligence event loop
+- Does NOT mutate ingest, asset, or booking state
+- Does NOT bypass the event system to query other packages' tables directly
 
-## Configuration
+## Integration Points
 
-```php
-return [
-    'channels' => ['mail'], // Add 'sms', 'push' later
-    'queue' => 'notifications',
-    'from' => [
-        'address' => env('MAIL_FROM_ADDRESS'),
-        'name' => env('MAIL_FROM_NAME'),
-    ],
-    'rate_limit' => [
-        'max_per_hour' => 50,
-        'max_per_day' => 200,
-    ],
-];
-```
+- **Events listened to:** None wired yet (future: domain events from gallery, booking, invoicing, interactions, ingest)
+- **Events emitted:** None currently
+- **Contracts depended on:** `prophoto/contracts` (shared DTOs/enums)
+- **Model relationships:** Message→Studio (belongs to, from prophoto-access), Message→Gallery (belongs to, from prophoto-gallery), Message→Image (belongs to, from prophoto-gallery)
 
-## Dependencies
+## Data Ownership
 
-- All ProPhoto packages (listens to events)
-- `prophoto/tenancy` - Studio context
-- `prophoto/audit` - Log delivery
+| Table | Model | Purpose |
+|---|---|---|
+| `messages` | Message | Notification records with delivery state |
 
+## Notes
+
+- ServiceProvider is declared in composer.json (`ProPhoto\Notifications\NotificationsServiceProvider`) but the file does not yet exist — needs implementation
+- Uses `illuminate/mail` and `illuminate/notifications` for delivery infrastructure
+- This package should only grow by adding event listeners and notification templates — domain logic belongs in the originating package

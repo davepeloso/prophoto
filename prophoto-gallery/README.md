@@ -1,152 +1,61 @@
 # ProPhoto Gallery
 
-**Gallery domain package - Core gallery models, collections, sharing, templates, and advanced features**
+## Purpose
 
----
+Gallery domain package owning the presentation layer for photography deliverables. Manages gallery containers, image records, collections, sharing, templates, comments, access logging, and tagging. This package is the primary consumer of asset data for client-facing display but does not own asset truth — it references assets via `asset_id` on the Image model.
 
-## Package Scope
+## Responsibilities
 
-This package owns the **gallery domain** for the ProPhoto system.
+- Gallery model (album containers scoped to studio + organization)
+- Image model (image records within galleries, linked to assets via `asset_id`)
+- ImageVersion model (edited versions and crops of images)
+- GalleryCollection model (organized groupings of galleries)
+- GalleryShare model (secure sharing links with access control)
+- GalleryTemplate model (reusable gallery configuration templates)
+- GalleryComment model (comments on galleries)
+- GalleryAccessLog model (audit trail for gallery views)
+- ImageTag model (tagging system for images)
+- API routes for gallery CRUD, image management, collections, sharing
+- Policies for gallery, collection, share, and template authorization (using `prophoto-access` permissions)
+- `GalleryServiceProvider` with route loading and policy registration
 
-### Core Models
-- **Gallery** - Gallery/album container
-- **Image** - Image records with metadata
-- **ImageVersion** - Image edit versions and crops
+## Non-Responsibilities
 
-### Advanced Features
-- **GalleryCollection** - Organized collections of galleries
-- **GalleryShare** - Secure sharing with access control
-- **GalleryTemplate** - Reusable gallery templates
-- **GalleryComment** - Comments on galleries
-- **GalleryAccessLog** - Audit trail for gallery access
-- **ImageTag** - Tagging system for images
+- Does NOT own asset truth — canonical asset data lives in prophoto-assets
+- Does NOT own ingest logic — image creation from uploads is handled by prophoto-ingest
+- Does NOT own session/booking associations — that is prophoto-ingest and prophoto-booking
+- Does NOT own AI generation — AI portrait models live in prophoto-ai
+- Does NOT own interaction data (ratings, approvals) — that is prophoto-interactions
+- Does NOT mutate ingest or asset state
+- Does NOT query booking tables directly
 
-### Migrations
-- `galleries` table (extended)
-- `images` table (extended)
-- `image_versions` table
-- `gallery_collections` table
-- `collection_gallery` pivot table
-- `gallery_shares` table
-- `gallery_comments` table
-- `gallery_access_logs` table
-- `gallery_templates` table
-- `image_tags` table
-- `image_tag` pivot table
+## Integration Points
 
-### Policies
-- **GalleryPolicy** - Authorization for gallery access and management
-- **GalleryCollectionPolicy** - Collection access control
-- **GallerySharePolicy** - Share link authorization
-- **GalleryTemplatePolicy** - Template management authorization
+- **Events listened to:** None currently
+- **Events emitted:** None currently (future: gallery-level events for notifications)
+- **Contracts depended on:** `prophoto/contracts` (shared DTOs/enums), `prophoto/access` (Permissions, UserRole, Studio, Organization models), `prophoto/assets` (asset references)
+- **Referenced by:** prophoto-ai (AiGeneration→Gallery), prophoto-interactions (ImageInteraction→Image), prophoto-notifications (Message→Gallery/Image), prophoto-booking (Session→Gallery)
 
----
+## Data Ownership
 
-## Dependencies
+| Table | Model | Purpose |
+|---|---|---|
+| `galleries` | Gallery | Gallery/album containers |
+| `images` | Image | Image records (references assets via `asset_id`) |
+| `image_versions` | ImageVersion | Edited versions of images |
+| `gallery_collections` | GalleryCollection | Grouped galleries |
+| `collection_gallery` | (pivot) | Collection-gallery membership |
+| `gallery_shares` | GalleryShare | Sharing links and access grants |
+| `gallery_comments` | GalleryComment | Comments on galleries |
+| `gallery_access_logs` | GalleryAccessLog | View/access audit trail |
+| `gallery_templates` | GalleryTemplate | Reusable gallery configurations |
+| `image_tags` | ImageTag | Tag definitions |
+| `image_tag` | (pivot) | Image-tag associations |
 
-- `prophoto/contracts` - Shared interfaces and DTOs
-- `prophoto/access` - RBAC permissions and tenancy
+## Notes
 
----
-
-## Upstream Dependencies (Laravel-Realistic)
-
-This package is referenced by:
-- **prophoto-booking** - Session.gallery relationship
-- **prophoto-ai** - AiGeneration.gallery relationship
-- **prophoto-ingest** - StagingImage transforms to Image
-- **prophoto-interactions** - ImageInteraction.image relationship
-- **prophoto-notifications** - Message references Gallery/Image
-
----
-
-## Installation
-
-In sandbox/composer.json:
-```json
-{
-  "require": {
-    "prophoto/gallery": "dev-main"
-  }
-}
-```
-
-```bash
-composer require prophoto/gallery:dev-main
-php artisan migrate
-```
-
----
-
-## Usage
-
-### Gallery Model
-
-```php
-use ProPhoto\Gallery\Models\Gallery;
-
-$gallery = Gallery::create([
-    'studio_id' => $studio->id,
-    'organization_id' => $org->id,
-    'subject_name' => 'John Doe',
-    'status' => 'active',
-]);
-```
-
-### Image Model
-
-```php
-use ProPhoto\Gallery\Models\Image;
-
-$image = Image::create([
-    'gallery_id' => $gallery->id,
-    'filename' => 'photo.jpg',
-    'imagekit_url' => 'https://...',
-    'file_size' => 1024000,
-    'width' => 1920,
-    'height' => 1080,
-    'metadata' => ['camera' => 'Canon EOS R5'],
-]);
-```
-
-### Authorization
-
-```php
-use ProPhoto\Access\Permissions;
-
-// Check permission
-if ($user->hasContextualPermission(Permissions::VIEW_GALLERIES, $gallery)) {
-    // Allow access
-}
-
-// Use policy
-$this->authorize('view', $gallery);
-```
-
----
-
-## Testing
-
-```bash
-cd prophoto-gallery
-composer test
-```
-
----
-
-## Architecture Notes
-
-- **Eloquent Reality**: Downstream packages MAY reference Gallery/Image models
-- **Foreign Keys**: Allowed from downstream packages (e.g., `photo_sessions.gallery_id → galleries.id`)
-- **No Circular Dependencies**: Gallery does NOT import from booking/invoicing/ai
-- **Event-Driven**: Emits events for cross-package integration
-
----
-
-## Related Packages
-
-- **prophoto-interactions** - Image ratings, approvals, comments
-- **prophoto-booking** - Sessions that create galleries
-- **prophoto-ai** - AI training from gallery images
-- **prophoto-ingest** - Upload pipeline that creates images
-- **prophoto-notifications** - Notifications about gallery events
+- Gallery.images is the presentation layer; Asset is the canonical source of truth for media files
+- Image.asset_id links gallery images to prophoto-assets canonical records
+- Multiple downstream packages hold foreign keys to `galleries.id` and `images.id` — this is intentional and allowed
+- No circular dependencies: gallery does NOT import from booking, invoicing, or ingest
+- ServiceProvider: `ProPhoto\Gallery\GalleryServiceProvider` (auto-discovered)

@@ -2,7 +2,7 @@
 
 namespace ProPhoto\Intelligence\Tests\Unit\Orchestration;
 
-use PHPUnit\Framework\TestCase;
+use ProPhoto\Intelligence\Tests\TestCase;
 use ProPhoto\Contracts\DTOs\AssetId;
 use ProPhoto\Contracts\DTOs\EmbeddingResult;
 use ProPhoto\Contracts\DTOs\GeneratorResult;

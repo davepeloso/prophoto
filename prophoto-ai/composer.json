@@ -10,7 +10,7 @@
         "illuminate/queue": "^11.0|^12.0",
         "guzzlehttp/guzzle": "^7.0",
         "prophoto/contracts": "@dev",
-        "prophoto/galleries": "@dev"
+        "prophoto/gallery": "@dev"
     },
     "require-dev": {"orchestra/testbench": "^9.0", "pestphp/pest": "^2.0"},
     "autoload": {"psr-4": {"ProPhoto\\AI\\": "src/"}},

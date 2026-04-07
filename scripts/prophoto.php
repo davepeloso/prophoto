@@ -48,7 +48,8 @@ class ProPhotoWorkspace
         'prophoto/assets',
         'prophoto/gallery',
         'prophoto/ingest',
-        'prophoto/debug',
+        // prophoto/debug removed — package is retired in _archive/
+        // It depended on pre-rebuild ingest events that no longer exist.
     ];
 
     public function __construct()
