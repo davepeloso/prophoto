@@ -5,16 +5,40 @@ namespace ProPhoto\Ingest\Services;
 use ProPhoto\Contracts\Enums\SessionAssociationSubjectType;
 use ProPhoto\Ingest\Domain\IngestItem;
 
+/**
+ * Pure input snapshot builder for ingest flow.
+ *
+ * No decision logic allowed.
+ */
 class IngestItemContextBuilder
 {
     /**
+     * @param list<array<string, mixed>>|null $sessionContextSnapshot
+     * @return array{
+     *     metadata_snapshot: array<string, mixed>,
+     *     session_context_snapshot: list<array<string, mixed>>|null
+     * }
+     */
+    public function buildInputSnapshots(
+        IngestItem $ingestItem,
+        ?array $sessionContextSnapshot = null
+    ): array
+    {
+        return [
+            'metadata_snapshot' => $this->buildMetadataSnapshot($ingestItem),
+            // Pass-through only. No filtering, ranking, or interpretation at this layer.
+            'session_context_snapshot' => $sessionContextSnapshot,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    public function buildForMatching(IngestItem $ingestItem): array
+    public function buildMetadataSnapshot(IngestItem $ingestItem): array
     {
         $subjectId = (string) $ingestItem->ingestItemId;
 
-        $context = [
+        $snapshot = [
             'subject_type' => SessionAssociationSubjectType::INGEST_ITEM,
             'subject_id' => $subjectId,
             'ingest_item_id' => $subjectId,
@@ -32,9 +56,9 @@ class IngestItemContextBuilder
         ];
 
         if ($ingestItem->createdAt !== null && $ingestItem->createdAt !== '') {
-            $context['created_at'] = $ingestItem->createdAt;
+            $snapshot['created_at'] = $ingestItem->createdAt;
         }
 
-        return $context;
+        return $snapshot;
     }
 }

@@ -5,6 +5,7 @@ namespace ProPhoto\Ingest;
 use Illuminate\Support\ServiceProvider;
 use ProPhoto\Ingest\Repositories\SessionAssignmentDecisionRepository;
 use ProPhoto\Ingest\Repositories\SessionAssignmentRepository;
+use ProPhoto\Ingest\Services\BatchUploadRecognitionService;
 use ProPhoto\Ingest\Services\IngestItemContextBuilder;
 use ProPhoto\Ingest\Services\SessionAssociationWriteService;
 use ProPhoto\Ingest\Services\SessionMatchingService;
@@ -25,6 +26,7 @@ class IngestServiceProvider extends ServiceProvider
 
         // Service bindings
         $this->app->singleton(IngestItemContextBuilder::class);
+        $this->app->singleton(BatchUploadRecognitionService::class);
         $this->app->singleton(SessionAssociationWriteService::class);
         $this->app->singleton(SessionMatchingService::class);
         $this->app->singleton(IngestItemSessionMatchingFlowService::class);

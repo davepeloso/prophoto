@@ -79,7 +79,6 @@ PACKAGES=(
   prophoto-permissions
   prophoto-ai
   prophoto-audit
-  prophoto-debug
   prophoto-downloads
   prophoto-interactions
 )

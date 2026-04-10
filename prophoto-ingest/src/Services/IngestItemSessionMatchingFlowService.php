@@ -16,6 +16,7 @@ class IngestItemSessionMatchingFlowService
 {
     public function __construct(
         protected IngestItemContextBuilder $contextBuilder,
+        protected BatchUploadRecognitionService $recognitionService,
         protected SessionMatchingService $matchingService,
         protected Dispatcher $events
     ) {}
@@ -25,12 +26,20 @@ class IngestItemSessionMatchingFlowService
      * @param array<string, mixed> $options
      * @return array{
      *     subject_context: array<string, mixed>,
+     *     recognition_result: array<string, mixed>,
      *     matching_result: array<string, mixed>
      * }
      */
     public function handleCreated(IngestItem $ingestItem, array $sessionContexts, array $options = []): array
     {
-        $subjectContext = $this->contextBuilder->buildForMatching($ingestItem);
+        $snapshots = $this->contextBuilder->buildInputSnapshots($ingestItem, $sessionContexts);
+        $subjectContext = $snapshots['metadata_snapshot'];
+        $sessionContextSnapshot = $snapshots['session_context_snapshot'] ?? [];
+        $recognitionResult = $this->recognitionService->recognizeBatch(
+            normalizedMetadataSnapshot: $subjectContext,
+            sessionContextSnapshots: is_array($sessionContextSnapshot) ? $sessionContextSnapshot : [],
+            options: $options
+        );
 
         $this->events->dispatch(
             new IngestItemCreated(
@@ -45,7 +54,7 @@ class IngestItemSessionMatchingFlowService
 
         $matchingResult = $this->matchingService->matchAndWrite(
             subjectContext: $subjectContext,
-            sessionContexts: $sessionContexts,
+            sessionContexts: is_array($sessionContextSnapshot) ? $sessionContextSnapshot : [],
             options: $options
         );
 
@@ -53,6 +62,7 @@ class IngestItemSessionMatchingFlowService
 
         return [
             'subject_context' => $subjectContext,
+            'recognition_result' => $recognitionResult,
             'matching_result' => $matchingResult,
         ];
     }

@@ -27,3 +27,8 @@ tmp/
 # Misc
 .env
 .env.*
+_bmad/
+_bmad/output/
+.windsurf/skills
+.claude/skills
+.gemini/skills

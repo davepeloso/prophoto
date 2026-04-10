@@ -13,6 +13,7 @@ use ProPhoto\Ingest\Domain\IngestItem;
 use ProPhoto\Ingest\Events\IngestItemCreated;
 use ProPhoto\Ingest\Repositories\SessionAssignmentDecisionRepository;
 use ProPhoto\Ingest\Repositories\SessionAssignmentRepository;
+use ProPhoto\Ingest\Services\BatchUploadRecognitionService;
 use ProPhoto\Ingest\Services\IngestItemContextBuilder;
 use ProPhoto\Ingest\Services\IngestItemSessionMatchingFlowService;
 use ProPhoto\Ingest\Services\Matching\SessionMatchCandidateGenerator;
@@ -40,6 +41,7 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
 
         $this->flowService = new IngestItemSessionMatchingFlowService(
             contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $this->buildRecognitionService(),
             matchingService: $this->buildMatchingService(),
             events: $this->app['events']
         );
@@ -50,6 +52,7 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
         Event::fake();
         $this->flowService = new IngestItemSessionMatchingFlowService(
             contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $this->buildRecognitionService(),
             matchingService: $this->buildMatchingService(),
             events: Event::getFacadeRoot()
         );
@@ -87,12 +90,21 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
         ]);
 
         $subjectContext = $result['subject_context'];
+        $recognitionResult = $result['recognition_result'];
         $matchingResult = $result['matching_result'];
 
         $this->assertSame(SessionAssociationSubjectType::INGEST_ITEM, $subjectContext['subject_type']);
         $this->assertSame('ingest-9001', $subjectContext['subject_id']);
         $this->assertSame('ingest-9001', $subjectContext['ingest_item_id']);
         $this->assertNull($subjectContext['asset_id']);
+        $this->assertIsArray($recognitionResult);
+        $this->assertArrayHasKey('outcome_status', $recognitionResult);
+        $this->assertArrayHasKey('suggested_next_actions', $recognitionResult);
+        $this->assertSame([
+            'Cull now',
+            'Continue to delivery',
+            'Review match / session context',
+        ], $recognitionResult['suggested_next_actions']);
 
         $this->assertSame(SessionAssignmentDecisionType::AUTO_ASSIGN, $matchingResult['classification']['decision_type']);
         $this->assertTrue($matchingResult['assignment_written']);
@@ -131,6 +143,7 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
         Event::fake();
         $this->flowService = new IngestItemSessionMatchingFlowService(
             contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $this->buildRecognitionService(),
             matchingService: $this->buildMatchingService(),
             events: Event::getFacadeRoot()
         );
@@ -166,6 +179,7 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
         Event::fake();
         $this->flowService = new IngestItemSessionMatchingFlowService(
             contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $this->buildRecognitionService(),
             matchingService: $this->buildMatchingService(),
             events: Event::getFacadeRoot()
         );
@@ -216,6 +230,7 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
 
         $flowService = new IngestItemSessionMatchingFlowService(
             contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $this->buildRecognitionService(),
             matchingService: $failingMatchingService,
             events: Event::getFacadeRoot()
         );
@@ -245,6 +260,114 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
         Event::assertNotDispatched(SessionAssociationResolved::class);
         $this->assertSame(0, DB::table('asset_session_assignment_decisions')->count());
         $this->assertSame(0, DB::table('asset_session_assignments')->count());
+    }
+
+    public function test_handle_created_accepts_absent_optional_session_context_snapshot_and_surfaces_recognition_result(): void
+    {
+        $ingestItem = new IngestItem(
+            ingestItemId: 'ingest-9010',
+            captureAtUtc: '2026-03-13T18:05:00Z',
+            gpsLat: 34.1000,
+            gpsLng: -118.3000,
+            triggerSource: 'ingest_batch',
+            idempotencyKey: 'ingest-flow-9010'
+        );
+
+        $result = $this->flowService->handleCreated($ingestItem, []);
+
+        $this->assertIsArray($result['recognition_result']);
+        $this->assertSame('no-viable-candidates', $result['recognition_result']['outcome_status']);
+        $this->assertNull($result['recognition_result']['primary_candidate']);
+        $this->assertSame([], $result['recognition_result']['low_confidence_candidates']);
+    }
+
+    public function test_recognition_executes_before_matching_mutation_path_and_flow_returns_view_model_recognition(): void
+    {
+        Event::fake();
+
+        $recognitionService = new class (
+            new SessionMatchCandidateGenerator(),
+            new SessionMatchScoringService()
+        ) extends BatchUploadRecognitionService {
+            public bool $called = false;
+            /** @var array<string, mixed> */
+            public array $lastMetadataSnapshot = [];
+            /** @var list<array<string, mixed>> */
+            public array $lastSessionSnapshots = [];
+
+            /**
+             * @param array<string, mixed> $normalizedMetadataSnapshot
+             * @param list<array<string, mixed>> $sessionContextSnapshots
+             * @param array<string, mixed> $options
+             * @return array<string, mixed>
+             */
+            public function recognizeBatch(
+                array $normalizedMetadataSnapshot,
+                array $sessionContextSnapshots,
+                array $options = []
+            ): array {
+                $this->called = true;
+                $this->lastMetadataSnapshot = $normalizedMetadataSnapshot;
+                $this->lastSessionSnapshots = $sessionContextSnapshots;
+
+                return parent::recognizeBatch($normalizedMetadataSnapshot, $sessionContextSnapshots, $options);
+            }
+        };
+
+        $matchingService = $this->getMockBuilder(SessionMatchingService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['matchAndWrite'])
+            ->getMock();
+
+        $matchingService->expects($this->once())
+            ->method('matchAndWrite')
+            ->willReturnCallback(function (array $subjectContext) use ($recognitionService): array {
+                // Matching/mutation path must start only after recognition was computed.
+                $this->assertTrue($recognitionService->called);
+                $this->assertArrayHasKey('ingest_item_id', $subjectContext);
+                $this->assertArrayHasKey('capture_at_utc', $subjectContext);
+
+                return [
+                    'classification' => [
+                        'decision_type' => SessionAssignmentDecisionType::NO_MATCH,
+                    ],
+                    'decision' => [
+                        'decision_type' => SessionAssignmentDecisionType::NO_MATCH->value,
+                    ],
+                    'assignment' => null,
+                    'assignment_written' => false,
+                ];
+            });
+
+        $flowService = new IngestItemSessionMatchingFlowService(
+            contextBuilder: new IngestItemContextBuilder(),
+            recognitionService: $recognitionService,
+            matchingService: $matchingService,
+            events: Event::getFacadeRoot()
+        );
+
+        $result = $flowService->handleCreated(
+            new IngestItem(
+                ingestItemId: 'ingest-9011',
+                captureAtUtc: '2026-03-13T18:05:00Z',
+                gpsLat: 34.1000,
+                gpsLng: -118.3000,
+                triggerSource: 'ingest_batch'
+            ),
+            [
+                $this->sessionContext(8801, '2026-03-13T18:00:00Z', '2026-03-13T19:00:00Z'),
+            ]
+        );
+
+        $this->assertIsArray($result['recognition_result']);
+        $this->assertArrayHasKey('outcome_status', $result['recognition_result']);
+        $this->assertArrayHasKey('suggested_next_actions', $result['recognition_result']);
+        $this->assertArrayHasKey('ingest_item_id', $recognitionService->lastMetadataSnapshot);
+        $this->assertArrayHasKey('capture_at_utc', $recognitionService->lastMetadataSnapshot);
+        $this->assertCount(1, $recognitionService->lastSessionSnapshots);
+        $this->assertSame(0, DB::table('asset_session_assignment_decisions')->count());
+        $this->assertSame(0, DB::table('asset_session_assignments')->count());
+        Event::assertNotDispatched(SessionAssociationResolved::class);
     }
 
     /**
@@ -295,6 +418,14 @@ class IngestItemSessionMatchingFlowServiceTest extends TestCase
                 ambiguityDelta: 0.05
             ),
             writeService: $writeService
+        );
+    }
+
+    protected function buildRecognitionService(): BatchUploadRecognitionService
+    {
+        return new BatchUploadRecognitionService(
+            candidateGenerator: new SessionMatchCandidateGenerator(),
+            scoringService: new SessionMatchScoringService(),
         );
     }
 }

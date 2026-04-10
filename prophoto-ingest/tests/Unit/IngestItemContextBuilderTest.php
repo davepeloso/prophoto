@@ -9,7 +9,7 @@ use ProPhoto\Ingest\Tests\TestCase;
 
 class IngestItemContextBuilderTest extends TestCase
 {
-    public function test_build_for_matching_creates_aligned_ingest_item_subject_context(): void
+    public function test_build_metadata_snapshot_creates_aligned_ingest_item_subject_context(): void
     {
         $ingestItem = new IngestItem(
             ingestItemId: 'ingest-5001',
@@ -26,7 +26,7 @@ class IngestItemContextBuilderTest extends TestCase
             createdAt: '2026-03-13T18:06:00Z'
         );
 
-        $context = (new IngestItemContextBuilder())->buildForMatching($ingestItem);
+        $context = (new IngestItemContextBuilder())->buildMetadataSnapshot($ingestItem);
 
         $this->assertSame(SessionAssociationSubjectType::INGEST_ITEM, $context['subject_type']);
         $this->assertSame('ingest-5001', $context['subject_id']);
@@ -45,7 +45,7 @@ class IngestItemContextBuilderTest extends TestCase
         $this->assertSame('2026-03-13T18:06:00Z', $context['created_at']);
     }
 
-    public function test_build_for_matching_omits_created_at_when_not_provided(): void
+    public function test_build_metadata_snapshot_omits_created_at_when_not_provided(): void
     {
         $ingestItem = new IngestItem(
             ingestItemId: 'ingest-5002',
@@ -54,10 +54,32 @@ class IngestItemContextBuilderTest extends TestCase
             gpsLng: null
         );
 
-        $context = (new IngestItemContextBuilder())->buildForMatching($ingestItem);
+        $context = (new IngestItemContextBuilder())->buildMetadataSnapshot($ingestItem);
 
         $this->assertArrayNotHasKey('created_at', $context);
         $this->assertSame('ingest-5002', $context['subject_id']);
         $this->assertSame('ingest-5002', $context['ingest_item_id']);
+    }
+
+    public function test_build_input_snapshots_passes_session_context_snapshot_as_is_and_nullable(): void
+    {
+        $builder = new IngestItemContextBuilder();
+        $ingestItem = new IngestItem(
+            ingestItemId: 'ingest-5003',
+            captureAtUtc: '2026-03-13T18:05:00Z'
+        );
+
+        $sessionSnapshot = [
+            ['session_id' => 8801, 'title' => 'Session A'],
+            ['session_id' => 8802, 'title' => 'Session B'],
+        ];
+
+        $withSession = $builder->buildInputSnapshots($ingestItem, $sessionSnapshot);
+        $withoutSession = $builder->buildInputSnapshots($ingestItem, null);
+
+        $this->assertArrayHasKey('metadata_snapshot', $withSession);
+        $this->assertArrayHasKey('session_context_snapshot', $withSession);
+        $this->assertSame($sessionSnapshot, $withSession['session_context_snapshot']);
+        $this->assertNull($withoutSession['session_context_snapshot']);
     }
 }
