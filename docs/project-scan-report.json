@@ -2,8 +2,10 @@
   "workflow_version": "1.2.0",
   "timestamps": {
     "started": "2026-04-10T00:00:00Z",
-    "last_updated": "2026-04-10T00:00:00Z",
-    "completion_time_minutes": 45
+    "last_updated": "2026-04-10T03:45:00Z",
+    "phase_1_completion_time_minutes": 45,
+    "phase_2_3_completion_time_minutes": 180,
+    "total_session_time_minutes": 225
   },
   "mode": "full_rescan",
   "scan_level": "deep",
@@ -263,12 +265,139 @@
       "Access package (RBAC) has no tests"
     ]
   },
-  "next_steps_for_phase_2": [
-    "Project-Level PRD generation using all documentation",
-    "Feature dependency analysis based on event flows",
-    "Integration testing strategy for cross-package communication",
-    "Performance baseline and optimization roadmap",
-    "Test coverage expansion plan for untested packages"
+  "sprint_implementation_status": {
+    "sprint_1": {
+      "name": "Phase 1a — Metadata Extraction + Calendar OAuth",
+      "status": "✅ COMPLETED",
+      "stories": ["1a.1 MetadataExtractor.ts", "1a.2 CalendarOAuthService + CalendarTokenService", "1a.5 DB migrations (upload_sessions, ingest_files, ingest_image_tags)", "1a.6 UploadSessionService (15 unit tests)"],
+      "points_delivered": 19
+    },
+    "sprint_2": {
+      "name": "Phase 1a — Calendar Matching + API Endpoint",
+      "status": "✅ COMPLETED",
+      "stories": ["1a.3 CalendarMatcherService (22 unit tests)", "1a.4 POST /api/ingest/match-calendar (IngestController + routes)", "1a.7 UploadInitiator.tsx", "1a.8 CalendarMatchDisplay.tsx"],
+      "points_delivered": 23
+    },
+    "sprint_3": {
+      "name": "Phase 1b — Gallery Ingest UI + Tagging",
+      "status": "✅ COMPLETED",
+      "stories": ["1b.1 IngestGallery.tsx Inertia page", "1b.2 UploadManager.ts + useUploadManager hook", "1b.3 TaggingPanel.tsx + UploadStatusBar.tsx", "1b.4 registerFiles + uploadFile + applyTag + removeTag + batchUpdateFiles endpoints (11 unit tests)"],
+      "points_delivered": 23
+    },
+    "sprint_4": {
+      "name": "Phase 1b — Charts Tab + Calendar Tab + Upload Manager Polish",
+      "status": "✅ COMPLETED",
+      "stories": [
+        "IngestEntrypoint.tsx — 3-stage page orchestrator (initiate → match → gallery)",
+        "CalendarTab.tsx — session calendar context tab with confidence breakdown + unlink action",
+        "ChartsTab ported to new component location (ISO, aperture, focal length, camera, timeline charts)",
+        "TaggingPanel updated to 4 tabs: Tags / Session / Charts / Info",
+        "Upload retry handler wired: failed files re-enqueued via UploadManager.enqueue()",
+        "handleUnlinkCalendar wired through IngestGallery → TaggingPanel → CalendarTab",
+        "DELETE /api/ingest/sessions/{id}/unlink-calendar endpoint",
+        "GET /ingest Inertia entrypoint (web middleware, renders IngestEntrypoint)",
+        "UploadInitiator onMatchComplete signature updated to pass File[] to parent"
+      ],
+      "points_delivered": 21
+    },
+    "sprint_5": {
+      "name": "Phase 1c — Backend Event System + Asset Creation",
+      "status": "📋 PLANNED",
+      "stories_planned": ["SessionAssociationResolved event dispatch on confirmSession", "Asset creation listener in prophoto-assets", "Thumbnail generation queue job", "Preview polling endpoint"],
+      "points_estimated": 24
+    },
+    "sprint_6": {
+      "name": "Phase 1c — Asset Listeners + Gallery Projection",
+      "status": "📋 PLANNED",
+      "stories_planned": ["Gallery context projection from confirmed session", "Intelligence queue trigger", "Metadata propagation to Asset model"],
+      "points_estimated": 18
+    },
+    "sprint_7": {
+      "name": "Phase 1c — Performance + E2E + Launch",
+      "status": "📋 PLANNED",
+      "stories_planned": ["E2E test: full ingest flow", "Performance: 100-file batch under targets", "Error boundary + retry flows", "Launch readiness checklist"],
+      "points_estimated": 16
+    }
+  },
+  "bmad_phase_status": {
+    "phase_1": {
+      "name": "Analysis & Documentation",
+      "status": "✅ COMPLETED",
+      "date_completed": "2026-04-10T01:15:00Z",
+      "deliverables": [
+        "Deep codebase scan (all 11 packages analyzed)",
+        "Project context documentation (6 master docs)",
+        "Technology stack inventory",
+        "Architecture pattern identification",
+        "Test coverage assessment"
+      ]
+    },
+    "phase_2a": {
+      "name": "Project-Level PRD Generation",
+      "status": "✅ COMPLETED",
+      "date_completed": "2026-04-10T02:30:00Z",
+      "deliverable": "PRD-project-level.md (~18KB)",
+      "key_content": [
+        "Strategic positioning ($720M TAM, 13.56% CAGR)",
+        "Problem statement (photographers waste 50 min/shoot on organization)",
+        "5 primary strategic goals with measurable outcomes",
+        "6 non-goals (explicitly scoped out)",
+        "Event-driven modular monolith architecture (11 packages)",
+        "4-phase roadmap with deliverables & success metrics"
+      ]
+    },
+    "phase_2b": {
+      "name": "Feature-Level PRD Generation (Phase 1 Epic: Complete Ingest & Post-Upload Workflow)",
+      "status": "✅ COMPLETED",
+      "date_completed": "2026-04-10T03:15:00Z",
+      "deliverable": "PRD-phase-1-epic-ingest-workflow.md (~22KB)",
+      "key_content": [
+        "Complete Phase 1 ingest workflow specification (not just upload recognition)",
+        "User problem: 45-60 min manual file organization per shoot → <5 min automated",
+        "3 pillars: metadata-first ingest, calendar as context engine, immediate tagging interface",
+        "4 core user workflows with preconditions & steps",
+        "3 user personas (Sarah, James, Lisa) with detailed stories",
+        "13 P0 must-have requirements (P0.1-P0.13)",
+        "8 P1 nice-to-have requirements (fast follows)",
+        "5 P2 future considerations (architectural insurance)",
+        "Success metrics (leading & lagging indicators)",
+        "9-week implementation timeline (phases 1a, 1b, 1c)",
+        "Reference to V0 prototype in _archive/ingest-pro/"
+      ]
+    },
+    "phase_3": {
+      "name": "Architecture Design for Phase 1 Implementation",
+      "status": "✅ COMPLETED",
+      "date_completed": "2026-04-10T03:45:00Z",
+      "deliverable": "ARCH-phase-1-ingest-design.md (~28KB)",
+      "key_content": [
+        "High-level data flow (8-step journey from upload to asset creation)",
+        "Component architecture: Frontend (metadata extractor, gallery UI, upload manager) + Backend (calendar matcher, session manager, API controllers)",
+        "Database schema: 4 new tables (upload_sessions, ingest_files, ingest_image_tags, upload_session_metadata)",
+        "5 new API endpoints with request/response specs",
+        "Event-driven workflow: SessionAssociationResolved event triggering downstream listeners",
+        "Frontend-backend communication sequences",
+        "Performance targets: <5s metadata extraction, <3s calendar match, <2s gallery render, <100ms filtering",
+        "Concurrency handling for 10+ simultaneous uploads",
+        "Database indexing strategy",
+        "Comprehensive error handling (network failures, corrupt metadata, edge cases)",
+        "Testing strategy (unit, integration, performance, UAT)",
+        "Deployment infrastructure (S3, job queue, monitoring)",
+        "9-week implementation roadmap (detailed breakdown)",
+        "Code examples (TypeScript metadata extractor, PHP calendar matcher)",
+        "Known limitations & deferred work (Phases 2-4)"
+      ]
+    }
+  },
+  "next_steps_for_phase_4": [
+    "Epic User Story Breakdown: Transform ARCH-phase-1-ingest-design.md into implementation-ready user stories/tickets",
+    "Engineering Sprint Planning: Schedule weeks 1-9 with capacity planning and dependency sequencing",
+    "Design System Handoff: UI component specifications and responsive design specs for ingest gallery",
+    "Calendar OAuth Setup: Configure Google Calendar API credentials and testing environment",
+    "Database Migrations: Prepare Laravel migration files for upload_sessions, ingest_files, ingest_image_tags, upload_session_metadata",
+    "Development Environment: Spin up test environment with S3/Redis/PostgreSQL configured",
+    "Reference Implementation Review: Team walkthrough of ingest-pro V0 prototype code",
+    "Risk Assessment: Identify potential bottlenecks (concurrent uploads, metadata extraction performance, calendar API rate limits)"
   ],
   "documentation_quality": {
     "completeness": "comprehensive",
@@ -288,9 +417,12 @@
   },
   "resumability": {
     "full_scan_complete": true,
-    "can_resume_from": "Phase 2 (PRD generation)",
+    "bmad_phases_complete": ["Phase 1: Analysis", "Phase 2A: Project-Level PRD", "Phase 2B: Feature-Level PRD", "Phase 3: Architecture Design"],
+    "can_resume_from": "Phase 4 (Epic Breakdown & Sprint Planning)",
     "state_file_valid": true,
-    "all_outputs_written": true
+    "all_outputs_written": true,
+    "operator_mode": "solo - Dave Peloso (no other agents used)",
+    "context_persistence": "Full session context maintained by Claude in single conversation thread"
   },
   "recommendations": [
     {
@@ -340,5 +472,33 @@
     "Dependency graph is acyclic (clean architecture)",
     "Event listener example verified in prophoto-assets/HandleSessionAssociationResolved.php"
   ],
-  "summary": "BMAD Document Project Phase 1 (Analysis) completed successfully. Comprehensive documentation generated for 11-package Laravel monorepo. Deep scan captured architecture patterns, all 28+ models, 22+ services, 14 events, 13 contracts, 42 migrations. Test coverage assessment completed (4 packages tested, 7 gaps identified). Ready for Phase 2 (Project-Level PRD generation)."
+  "summary": "BMAD Document Project Phases 1-3 completed successfully (225 minutes total, solo operation by Dave Peloso). Phase 1 (Analysis): Deep scan of 11-package Laravel monorepo captured architecture patterns, 28+ models, 22+ services, 14 events, 13 contracts, 42 migrations. Phase 2A (Project-Level PRD): Generated strategic positioning document ($720M market, clear business model, 4-phase roadmap). Phase 2B (Feature-Level PRD): Generated complete Phase 1 epic specification (ingest workflow, 13 P0 requirements, 9-week timeline, success metrics). Phase 3 (Architecture Design): Delivered detailed technical architecture (15 sections, 28KB, component specs, API contracts, database schema, error handling, performance targets, implementation roadmap). Ready for Phase 4 (Epic Breakdown & Sprint Planning).",
+  "documents_generated": [
+    {
+      "phase": "Phase 1 (Analysis)",
+      "documents": [
+        "docs/project-scan-report.json (this file)",
+        "docs/index.md",
+        "docs/project-overview.md",
+        "docs/source-tree-analysis.md",
+        "docs/component-inventory.md",
+        "docs/api-contracts.md",
+        "docs/data-models.md",
+        "docs/development-guide.md"
+      ]
+    },
+    {
+      "phase": "Phase 2 (PRD Generation)",
+      "documents": [
+        "docs/PRD-project-level.md (~18KB, strategic architecture & roadmap)",
+        "docs/PRD-phase-1-epic-ingest-workflow.md (~22KB, complete Phase 1 specification)"
+      ]
+    },
+    {
+      "phase": "Phase 3 (Architecture Design)",
+      "documents": [
+        "docs/ARCH-phase-1-ingest-design.md (~28KB, technical implementation roadmap)"
+      ]
+    }
+  ]
 }

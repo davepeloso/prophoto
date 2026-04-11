@@ -10,9 +10,13 @@ use ProPhoto\Ingest\Services\IngestItemContextBuilder;
 use ProPhoto\Ingest\Services\SessionAssociationWriteService;
 use ProPhoto\Ingest\Services\SessionMatchingService;
 use ProPhoto\Ingest\Services\IngestItemSessionMatchingFlowService;
+use ProPhoto\Ingest\Services\Calendar\CalendarMatcherService;
+use ProPhoto\Ingest\Services\Calendar\CalendarOAuthService;
+use ProPhoto\Ingest\Services\Calendar\CalendarTokenService;
 use ProPhoto\Ingest\Services\Matching\SessionMatchCandidateGenerator;
 use ProPhoto\Ingest\Services\Matching\SessionMatchScoringService;
 use ProPhoto\Ingest\Services\Matching\SessionMatchDecisionClassifier;
+use ProPhoto\Ingest\Services\UploadSessionService;
 
 class IngestServiceProvider extends ServiceProvider
 {
@@ -35,11 +39,20 @@ class IngestServiceProvider extends ServiceProvider
         $this->app->singleton(SessionMatchCandidateGenerator::class);
         $this->app->singleton(SessionMatchScoringService::class);
         $this->app->singleton(SessionMatchDecisionClassifier::class);
+
+        // Sprint 1 — Calendar OAuth + Upload Session
+        $this->app->singleton(CalendarOAuthService::class);
+        $this->app->singleton(CalendarTokenService::class);
+        $this->app->singleton(UploadSessionService::class);
+
+        // Sprint 2 — Calendar Matching
+        $this->app->singleton(CalendarMatcherService::class);
     }
 
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
 
         $this->publishes([
             __DIR__ . '/../config/ingest.php' => config_path('prophoto-ingest.php'),
