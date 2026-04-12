@@ -93,9 +93,11 @@ done
 
 # ─── Create Laravel app ──────────────────────────────────────────────────────
 
-step "Creating Laravel application: $APP_NAME"
+step "Creating Laravel application: $APP_NAME (Laravel 12)"
 
-composer create-project --prefer-dist laravel/laravel "$APP_DIR" --no-interaction -q
+# Pin to Laravel 12 — our packages require ^11.0|^12.0 and composer create-project
+# always grabs the latest release. Laravel 13+ would break all package constraints.
+composer create-project --prefer-dist laravel/laravel "$APP_DIR" "12.*" --no-interaction -q
 
 ok "Laravel skeleton created at $APP_DIR"
 
@@ -165,13 +167,36 @@ done
 
 # ─── Require all packages ────────────────────────────────────────────────────
 
+step "Installing Laravel Sanctum (required for auth:sanctum middleware)"
+
+composer require laravel/sanctum --no-interaction --no-progress --quiet
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider" \
+  --force --no-interaction >/dev/null 2>&1
+
+# Patch User model to use HasApiTokens — Laravel skeleton doesn't include this
+# by default, but createToken() won't exist without it.
+USER_MODEL="$APP_DIR/app/Models/User.php"
+if ! grep -q "HasApiTokens" "$USER_MODEL"; then
+  # Add the use import after the Notifiable import line
+  sed -i.bak "s/use Illuminate\\\\Notifications\\\\Notifiable;/use Illuminate\\\\Notifications\\\\Notifiable;\nuse Laravel\\\\Sanctum\\\\HasApiTokens;/" "$USER_MODEL"
+  # Add HasApiTokens to the trait use statement
+  sed -i.bak "s/use HasFactory, Notifiable;/use HasApiTokens, HasFactory, Notifiable;/" "$USER_MODEL"
+  rm -f "$USER_MODEL.bak"
+fi
+ok "Sanctum installed + User model patched with HasApiTokens"
+
 step "Requiring all packages (symlinked, no copy)"
 
 if [[ ${#REQUIRE_ARGS[@]} -gt 0 ]]; then
-  composer require "${REQUIRE_ARGS[@]}" --no-interaction --no-progress 2>&1 \
-    | grep -v "^$" \
-    | grep -v "^Loading\|^Nothing\|^Generating\|^Writing" \
-    || true
+  # --with-all-dependencies allows composer to resolve transitive deps freely.
+  # Without it, composer refuses to install if any package constrains a dep
+  # that the Laravel skeleton already locked to a different version.
+  if ! composer require "${REQUIRE_ARGS[@]}" \
+      --with-all-dependencies \
+      --no-interaction \
+      --no-progress; then
+    die "composer require failed — see output above for details"
+  fi
   ok "All packages installed"
 else
   warn "No packages found to require — check your directory layout"
@@ -181,14 +206,10 @@ fi
 
 step "Publishing and running migrations from all packages"
 
-# Laravel auto-discovers service providers via extra.laravel in each composer.json.
-# Each provider's loadMigrationsFrom() call will register package migrations
-# automatically — but we also publish them to database/migrations so artisan
-# migrate picks them up in the right order and you can see them.
-
-php artisan vendor:publish --tag=migrations --force --no-interaction 2>/dev/null || true
-
-# Run migrations (using the sqlite DB)
+# Laravel 12 skeleton already includes personal_access_tokens migration.
+# We do NOT publish Sanctum migrations separately — that would create a
+# duplicate and crash. Package migrations are auto-loaded via each
+# ServiceProvider's loadMigrationsFrom() registered in extra.laravel.
 php artisan migrate --force --no-interaction
 
 ok "Migrations complete"

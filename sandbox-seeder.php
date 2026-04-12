@@ -65,7 +65,9 @@ class SandboxSeeder extends Seeder
             $galleryId = null;
             if ($this->tableExists('organizations') && $this->tableExists('galleries')) {
                 $orgId = DB::table('organizations')->insertGetId([
+                    'studio_id'  => $studioId,
                     'name'       => 'Peloso Photography LLC',
+                    'type'       => 'individual',
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -188,6 +190,18 @@ class SandboxSeeder extends Seeder
 
             $this->command->line("  ✔ IngestImageTags created (7 tags)");
 
+            // ── Sanctum API token ──────────────────────────────────────────
+            // Generate a token so you can hit auth:sanctum protected routes
+            // immediately without going through the login flow.
+            $apiToken = null;
+            if (class_exists(\Laravel\Sanctum\PersonalAccessToken::class)) {
+                $user = \App\Models\User::find($userId);
+                $apiToken = $user->createToken('sandbox')->plainTextToken;
+                $this->command->line("  ✔ Sanctum API token created");
+            } else {
+                $this->command->warn("  ⚠ Sanctum not installed — run: composer require laravel/sanctum");
+            }
+
             // ── Print API smoke-test hints ─────────────────────────────────
             $this->command->newLine();
             $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -198,6 +212,17 @@ class SandboxSeeder extends Seeder
             $this->command->line("  GET  /api/ingest/sessions/$sessionId/preview-status");
             $this->command->newLine();
             $this->command->info("Login:  dave@example.com / password");
+            if ($apiToken) {
+                $this->command->newLine();
+                $this->command->info('API Token (Bearer):');
+                $this->command->line("  $apiToken");
+                $this->command->newLine();
+                $this->command->info('Quick curl test:');
+                $this->command->line("  curl -s \\");
+                $this->command->line("    -H \"Authorization: Bearer $apiToken\" \\");
+                $this->command->line("    -H \"Accept: application/json\" \\");
+                $this->command->line("    http://prophoto-app.test/api/ingest/sessions/$sessionId/progress | jq");
+            }
             $this->command->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         }); // end transaction
