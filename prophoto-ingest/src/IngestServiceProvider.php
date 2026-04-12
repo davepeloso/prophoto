@@ -2,6 +2,7 @@
 
 namespace ProPhoto\Ingest;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use ProPhoto\Ingest\Repositories\SessionAssignmentDecisionRepository;
 use ProPhoto\Ingest\Repositories\SessionAssignmentRepository;
@@ -16,6 +17,8 @@ use ProPhoto\Ingest\Services\Calendar\CalendarTokenService;
 use ProPhoto\Ingest\Services\Matching\SessionMatchCandidateGenerator;
 use ProPhoto\Ingest\Services\Matching\SessionMatchScoringService;
 use ProPhoto\Ingest\Services\Matching\SessionMatchDecisionClassifier;
+use ProPhoto\Ingest\Events\IngestSessionConfirmed;
+use ProPhoto\Ingest\Listeners\IngestSessionConfirmedListener;
 use ProPhoto\Ingest\Services\UploadSessionService;
 
 class IngestServiceProvider extends ServiceProvider
@@ -53,6 +56,11 @@ class IngestServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
         $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
+
+        // ── Sprint 5 — Event → Listener registration ──────────────────────────
+        // IngestSessionConfirmed fires after the user confirms in the gallery.
+        // The listener creates Asset records from all uploaded IngestFiles.
+        Event::listen(IngestSessionConfirmed::class, IngestSessionConfirmedListener::class);
 
         $this->publishes([
             __DIR__ . '/../config/ingest.php' => config_path('prophoto-ingest.php'),

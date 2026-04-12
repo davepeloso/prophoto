@@ -2,8 +2,11 @@
 
 namespace ProPhoto\Gallery;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use ProPhoto\Gallery\Listeners\GalleryContextProjectionListener;
+use ProPhoto\Ingest\Events\IngestSessionConfirmed;
 use ProPhoto\Gallery\Console\Commands\BackfillGalleryImageAssetIdsCommand;
 use ProPhoto\Gallery\Models\GalleryCollection;
 use ProPhoto\Gallery\Models\GalleryShare;
@@ -53,6 +56,11 @@ class GalleryServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../resources/views' => resource_path('views/vendor/prophoto-gallery'),
         ], 'prophoto-gallery-views');
+
+        // ── Sprint 6 — Gallery context projection from confirmed ingest sessions
+        // When an ingest session is confirmed, assets are projected into the
+        // gallery as Image records so they appear immediately in the gallery UI.
+        Event::listen(IngestSessionConfirmed::class, GalleryContextProjectionListener::class);
 
         // Register policies
         $this->registerPolicies();

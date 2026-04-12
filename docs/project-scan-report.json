@@ -2,10 +2,11 @@
   "workflow_version": "1.2.0",
   "timestamps": {
     "started": "2026-04-10T00:00:00Z",
-    "last_updated": "2026-04-10T03:45:00Z",
+    "last_updated": "2026-04-11T18:00:00Z",
     "phase_1_completion_time_minutes": 45,
     "phase_2_3_completion_time_minutes": 180,
-    "total_session_time_minutes": 225
+    "sprint_1_4_completion_time_minutes": 480,
+    "total_session_time_minutes": 705
   },
   "mode": "full_rescan",
   "scan_level": "deep",
@@ -302,21 +303,57 @@
     },
     "sprint_5": {
       "name": "Phase 1c — Backend Event System + Asset Creation",
-      "status": "📋 PLANNED",
-      "stories_planned": ["SessionAssociationResolved event dispatch on confirmSession", "Asset creation listener in prophoto-assets", "Thumbnail generation queue job", "Preview polling endpoint"],
-      "points_estimated": 24
+      "status": "✅ COMPLETED",
+      "stories": [
+        "1c.1 IngestSessionConfirmed event — readonly class dispatched from UploadSessionService::confirmSession()",
+        "1c.2 IngestSessionConfirmedListener — iterates uploaded non-culled IngestFiles, creates Assets via AssetCreationService",
+        "1c.3 GenerateAssetThumbnail queue job — GD-based JPEG thumbnail, 3 retries + exponential backoff, dispatches AssetDerivativesGenerated",
+        "1c.4 GET /api/ingest/sessions/{id}/preview-status endpoint — polls asset creation progress + thumbnails",
+        "1c.5 IngestServiceProvider — Event::listen(IngestSessionConfirmed, IngestSessionConfirmedListener) registered in boot()",
+        "1c.5 Unit tests — IngestSessionConfirmedEventTest (6 tests) + IngestSessionConfirmedListenerTest (6 tests)"
+      ],
+      "points_delivered": 24,
+      "key_files": [
+        "prophoto-ingest/src/Events/IngestSessionConfirmed.php",
+        "prophoto-ingest/src/Listeners/IngestSessionConfirmedListener.php",
+        "prophoto-ingest/src/Jobs/GenerateAssetThumbnail.php",
+        "prophoto-ingest/tests/Unit/Sprint5/IngestSessionConfirmedEventTest.php",
+        "prophoto-ingest/tests/Unit/Sprint5/IngestSessionConfirmedListenerTest.php"
+      ]
     },
     "sprint_6": {
-      "name": "Phase 1c — Asset Listeners + Gallery Projection",
-      "status": "📋 PLANNED",
-      "stories_planned": ["Gallery context projection from confirmed session", "Intelligence queue trigger", "Metadata propagation to Asset model"],
-      "points_estimated": 18
+      "name": "Phase 1c — Gallery Context Projection",
+      "status": "✅ COMPLETED",
+      "stories": [
+        "1c.6 GalleryContextProjectionListener — bulk-inserts Image records per Asset, chunk(50), idempotent",
+        "1c.7 Intelligence Queue — confirmed ALREADY WIRED via IntelligenceServiceProvider listening to AssetReadyV1 (no new code needed)",
+        "Migration 2026_04_11_000013 — adds ingest_session_id, ingest_file_id, ingest_tags, calendar_event_id to images table",
+        "Image model — added ingest context fields to fillable + ingest_tags cast",
+        "GalleryServiceProvider — Event::listen(IngestSessionConfirmed, GalleryContextProjectionListener) registered",
+        "8 unit tests in Sprint6/GalleryContextProjectionListenerTest.php"
+      ],
+      "points_delivered": 18,
+      "key_files": [
+        "prophoto-gallery/src/Listeners/GalleryContextProjectionListener.php",
+        "prophoto-gallery/database/migrations/2026_04_11_000013_add_ingest_context_to_images_table.php",
+        "prophoto-ingest/tests/Unit/Sprint6/GalleryContextProjectionListenerTest.php"
+      ]
     },
     "sprint_7": {
-      "name": "Phase 1c — Performance + E2E + Launch",
-      "status": "📋 PLANNED",
-      "stories_planned": ["E2E test: full ingest flow", "Performance: 100-file batch under targets", "Error boundary + retry flows", "Launch readiness checklist"],
-      "points_estimated": 16
+      "name": "Phase 1c — Controller Feature Tests + N+1 Fix + Performance Indexes + Launch",
+      "status": "✅ COMPLETED",
+      "stories": [
+        "N+1 fix: batchUpdateFiles now uses single whereIn + bulk DB::table update (was per-row query in foreach)",
+        "22 HTTP Feature tests in Feature/IngestControllerTest.php covering all 9 JSON endpoints",
+        "Migration 2026_04_11_000004: 6 performance indexes (upload_sessions status+studio_status+confirmed_at, ingest_files culled+session_status_culled+rating, ingest_image_tags type_tag)",
+        "docs/LAUNCH-CHECKLIST.md: 10-section launch checklist with sign-off table"
+      ],
+      "points_delivered": 16,
+      "key_files": [
+        "prophoto-ingest/tests/Feature/IngestControllerTest.php",
+        "prophoto-ingest/database/migrations/2026_04_11_000004_add_sprint7_performance_indexes.php",
+        "docs/LAUNCH-CHECKLIST.md"
+      ]
     }
   },
   "bmad_phase_status": {

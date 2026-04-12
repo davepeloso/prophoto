@@ -3,7 +3,9 @@
 namespace ProPhoto\Ingest\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use ProPhoto\Ingest\Events\IngestSessionConfirmed;
 use ProPhoto\Ingest\Models\IngestFile;
 use ProPhoto\Ingest\Models\IngestImageTag;
 use ProPhoto\Ingest\Models\UploadSession;
@@ -272,7 +274,21 @@ class UploadSessionService
             'gallery_id'  => $session->gallery_id,
         ]);
 
-        return $session->fresh();
+        // ── Dispatch event to trigger asset creation pipeline ─────────────────
+        $fresh = $session->fresh();
+
+        Event::dispatch(new IngestSessionConfirmed(
+            sessionId:               $fresh->id,
+            studioId:                $fresh->studio_id,
+            userId:                  $fresh->user_id,
+            occurredAt:              now()->toISOString(),
+            calendarEventId:         $fresh->calendar_event_id,
+            calendarProvider:        $fresh->calendar_provider,
+            calendarMatchConfidence: $fresh->calendar_match_confidence,
+            galleryId:               $fresh->gallery_id,
+        ));
+
+        return $fresh;
     }
 
     /**

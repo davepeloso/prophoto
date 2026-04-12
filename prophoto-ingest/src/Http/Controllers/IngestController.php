@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use ProPhoto\Ingest\Http\Requests\ApplyTagRequest;
@@ -13,6 +14,7 @@ use ProPhoto\Ingest\Http\Requests\BatchFileUpdateRequest;
 use ProPhoto\Ingest\Http\Requests\MatchCalendarRequest;
 use ProPhoto\Ingest\Http\Requests\RegisterFilesRequest;
 use ProPhoto\Ingest\Http\Requests\UploadFileRequest;
+use ProPhoto\Assets\Models\Asset;
 use ProPhoto\Ingest\Models\IngestFile;
 use ProPhoto\Ingest\Models\IngestImageTag;
 use ProPhoto\Ingest\Models\UploadSession;
@@ -201,6 +203,59 @@ class IngestController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    // ─── GET /api/ingest/sessions/{sessionId}/preview-status ────────────────
+
+    /**
+     * Poll asset creation progress after the session is confirmed.
+     * The frontend polls this while the IngestSessionConfirmedListener
+     * processes files in the background.
+     *
+     * Response (200):
+     *   {
+     *     session_id:     string,
+     *     session_status: string,          // 'confirmed' | 'completed' | 'failed'
+     *     total_files:    int,
+     *     assets_created: int,
+     *     is_complete:    bool,
+     *     thumbnails: [
+     *       { asset_id: string, thumb_path: string|null }
+     *     ]
+     *   }
+     */
+    public function previewStatus(string $sessionId): JsonResponse
+    {
+        $session = UploadSession::find($sessionId);
+        if (! $session) {
+            return response()->json(['error' => 'Session not found.'], 404);
+        }
+
+        // Count assets whose metadata references this session_id
+        $assetsCreated = Asset::whereJsonContains('metadata->session_id', $sessionId)->count();
+
+        $thumbnails = Asset::whereJsonContains('metadata->session_id', $sessionId)
+            ->get(['id', 'metadata'])
+            ->map(fn (Asset $a) => [
+                'asset_id'   => $a->id,
+                'thumb_path' => $a->metadata['storage_key_thumb'] ?? null,
+            ])
+            ->values()
+            ->toArray();
+
+        $isComplete = in_array($session->status, [
+            UploadSession::STATUS_COMPLETED,
+            UploadSession::STATUS_FAILED,
+        ], true);
+
+        return response()->json([
+            'session_id'     => $session->id,
+            'session_status' => $session->status,
+            'total_files'    => $session->file_count,
+            'assets_created' => $assetsCreated,
+            'is_complete'    => $isComplete,
+            'thumbnails'     => $thumbnails,
+        ]);
     }
 
     // ── Sprint 4 ──────────────────────────────────────────────────────────────
@@ -427,30 +482,39 @@ class IngestController extends Controller
         $ids     = $request->input('ids', []);
         $updates = $request->input('updates', []);
 
+        if (empty($ids) || empty($updates)) {
+            return response()->json(['updated' => 0]);
+        }
+
+        // ── Sprint 7: N+1 fix ─────────────────────────────────────────────────
+        // Fetch all target files in a single query, then apply updates in bulk
+        // via DB::table() rather than one Eloquent query + save per row.
+        $files = IngestFile::whereIn('id', $ids)
+            ->where('upload_session_id', $sessionId)
+            ->get(['id']);
+
+        if ($files->isEmpty()) {
+            return response()->json(['updated' => 0]);
+        }
+
+        $validIds = $files->pluck('id')->toArray();
+        $patch    = [];
+
+        if (array_key_exists('culled', $updates)) {
+            $patch['culled'] = (bool) $updates['culled'];
+        }
+
+        if (array_key_exists('rating', $updates)) {
+            $patch['rating'] = max(0, min(5, (int) $updates['rating']));
+        }
+
         $updated = 0;
 
-        foreach ($ids as $fileId) {
-            $ingestFile = IngestFile::where('id', $fileId)
-                ->where('upload_session_id', $sessionId)
-                ->first();
-
-            if (! $ingestFile) continue;
-
-            $patch = [];
-
-            if (array_key_exists('culled', $updates)) {
-                // Toggle if the update is "true", otherwise use the explicit value
-                $patch['is_culled'] = (bool) $updates['culled'];
-            }
-
-            if (array_key_exists('rating', $updates)) {
-                $patch['rating'] = (int) $updates['rating'];
-            }
-
-            if (! empty($patch)) {
-                $ingestFile->update($patch);
-                $updated++;
-            }
+        if (! empty($patch)) {
+            $patch['updated_at'] = now()->toDateTimeString();
+            $updated = \Illuminate\Support\Facades\DB::table('ingest_files')
+                ->whereIn('id', $validIds)
+                ->update($patch);
         }
 
         return response()->json(['updated' => $updated]);

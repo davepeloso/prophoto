@@ -45,11 +45,17 @@ class Image extends Model
         'sort_order',
         'uploaded_at',
         'uploaded_by_user_id',
+        // Sprint 6 — ingest pipeline context
+        'ingest_session_id',
+        'ingest_file_id',
+        'ingest_tags',
+        'calendar_event_id',
     ];
 
     protected $casts = [
         'asset_id' => 'integer',
         'metadata' => 'array',
+        'ingest_tags' => 'array',
         'file_size' => 'integer',
         'width' => 'integer',
         'height' => 'integer',

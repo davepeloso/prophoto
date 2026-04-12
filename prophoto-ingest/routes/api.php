@@ -73,4 +73,9 @@ Route::middleware(['api', 'auth:sanctum'])
         // ── Sprint 4: Calendar unlink ─────────────────────────────────────────
         Route::delete('sessions/{sessionId}/unlink-calendar', [IngestController::class, 'unlinkCalendar'])
             ->name('sessions.unlink-calendar');
+
+        // ── Sprint 5: Asset creation progress polling ─────────────────────────
+        // Frontend polls this after "Confirm" while assets are being created.
+        Route::get('sessions/{sessionId}/preview-status', [IngestController::class, 'previewStatus'])
+            ->name('sessions.preview-status');
     });
