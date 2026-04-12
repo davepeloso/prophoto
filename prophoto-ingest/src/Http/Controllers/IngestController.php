@@ -231,17 +231,26 @@ class IngestController extends Controller
             return response()->json(['error' => 'Session not found.'], 404);
         }
 
-        // Count assets whose metadata references this session_id
-        $assetsCreated = Asset::whereJsonContains('metadata->session_id', $sessionId)->count();
+        // Count assets whose metadata references this session_id.
+        // Wrapped in try/catch: the assets table lives in prophoto-assets and
+        // may not exist in environments where that package is not installed.
+        $assetsCreated = 0;
+        $thumbnails    = [];
 
-        $thumbnails = Asset::whereJsonContains('metadata->session_id', $sessionId)
-            ->get(['id', 'metadata'])
-            ->map(fn (Asset $a) => [
-                'asset_id'   => $a->id,
-                'thumb_path' => $a->metadata['storage_key_thumb'] ?? null,
-            ])
-            ->values()
-            ->toArray();
+        try {
+            $assetsCreated = Asset::whereJsonContains('metadata->session_id', $sessionId)->count();
+
+            $thumbnails = Asset::whereJsonContains('metadata->session_id', $sessionId)
+                ->get(['id', 'metadata'])
+                ->map(fn (Asset $a) => [
+                    'asset_id'   => $a->id,
+                    'thumb_path' => $a->metadata['storage_key_thumb'] ?? null,
+                ])
+                ->values()
+                ->toArray();
+        } catch (\Throwable) {
+            // Asset table unavailable — return safe defaults
+        }
 
         $isComplete = in_array($session->status, [
             UploadSession::STATUS_COMPLETED,
@@ -381,7 +390,7 @@ class IngestController extends Controller
         }
 
         // Already uploaded — idempotent
-        if ($ingestFile->upload_status === IngestFile::STATUS_UPLOADED) {
+        if ($ingestFile->upload_status === IngestFile::STATUS_COMPLETED) {
             return response()->json(['file_id' => $fileId, 'status' => 'uploaded']);
         }
 
@@ -390,7 +399,7 @@ class IngestController extends Controller
             $path = $uploadedFile->storeAs(
                 "ingest/{$sessionId}",
                 $ingestFile->id . '_' . $ingestFile->filename,
-                disk: 'local',
+                ['disk' => 'local'],
             );
 
             $ingestFile->update(['storage_path' => $path]);

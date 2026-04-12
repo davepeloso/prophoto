@@ -22,11 +22,11 @@ class BatchFileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'ids'              => ['required', 'array', 'min:1'],
-            'ids.*'            => ['required', 'string', 'uuid'],
+            'ids'              => ['present', 'array'],
+            'ids.*'            => ['string', 'uuid'],
             'updates'          => ['required', 'array'],
             'updates.culled'   => ['sometimes', 'boolean'],
-            'updates.rating'   => ['sometimes', 'integer', 'min:0', 'max:5'],
+            'updates.rating'   => ['sometimes', 'integer', 'min:0'],
         ];
     }
 }

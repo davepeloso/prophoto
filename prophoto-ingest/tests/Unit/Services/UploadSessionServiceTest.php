@@ -3,7 +3,9 @@
 namespace ProPhoto\Ingest\Tests\Unit\Services;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Orchestra\Testbench\TestCase;
+use ProPhoto\Ingest\Events\IngestSessionConfirmed;
 use ProPhoto\Ingest\IngestServiceProvider;
 use ProPhoto\Ingest\Models\IngestFile;
 use ProPhoto\Ingest\Models\IngestImageTag;
@@ -28,6 +30,7 @@ class UploadSessionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Event::fake([IngestSessionConfirmed::class]);
         $this->service = $this->app->make(UploadSessionService::class);
     }
 

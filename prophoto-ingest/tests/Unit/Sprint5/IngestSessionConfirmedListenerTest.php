@@ -40,9 +40,10 @@ class IngestSessionConfirmedListenerTest extends TestCase
     {
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
-            'driver'   => 'sqlite',
-            'database' => ':memory:',
-            'prefix'   => '',
+            'driver'                  => 'sqlite',
+            'database'                => ':memory:',
+            'prefix'                  => '',
+            'foreign_key_constraints' => false,
         ]);
         $app['config']->set('queue.default', 'sync');
     }
@@ -168,46 +169,29 @@ class IngestSessionConfirmedListenerTest extends TestCase
         $this->assertEquals(UploadSession::STATUS_COMPLETED, $session->status);
     }
 
-    // ─── Test 4: Session marked STATUS_FAILED on service exception ────────────
+    // ─── Test 4: Per-file asset creation failures are isolated ───────────────────
+    //
+    // The listener wraps each file in its own try/catch, so a single file failure
+    // does NOT fail the entire session. The session is always marked completed
+    // after all files have been attempted (succeeded or failed individually).
 
-    public function test_listener_marks_session_failed_when_service_throws(): void
+    public function test_per_file_asset_failure_does_not_fail_the_session(): void
     {
         Queue::fake();
 
         $session = $this->makeSession();
-        $this->makeFile($session->id);
+        $this->makeFile($session->id); // one uploaded file
 
         $creationService = Mockery::mock(AssetCreationService::class);
         $creationService->shouldReceive('createFromFile')
             ->andThrow(new \RuntimeException('Storage unavailable'));
 
         $listener = new IngestSessionConfirmedListener($creationService, app(UploadSessionService::class));
+        $listener->handle($this->makeEvent($session));
 
-        // The listener catches top-level throws; per-file failures just count as failed
-        // but don't fail the whole session unless ALL fail. So test a complete bomb:
-        $sessionService = Mockery::mock(UploadSessionService::class)->makePartial();
-        $sessionService->shouldReceive('markCompleted')->never();
-        $sessionService->shouldReceive('markFailed')->once();
-
-        $listener2 = new IngestSessionConfirmedListener($creationService, $sessionService);
-
-        // Force the listener itself to throw by making sessionService->findOrFail blow up
-        // Instead: test that when the outer try/catch triggers, markFailed is called.
-        // We mock a version where the file query also blows up:
-        $creationService2 = Mockery::mock(AssetCreationService::class);
-        $creationService2->shouldReceive('createFromFile')->andThrow(new \RuntimeException('Fatal'));
-
-        // Verify that per-file failures don't crash the session — only bulk failures do
-        $session2 = $this->makeSession();
-        $this->makeFile($session2->id); // has uploaded file
-
-        $sessionService2 = app(UploadSessionService::class);
-        $listener3 = new IngestSessionConfirmedListener($creationService2, $sessionService2);
-        $listener3->handle($this->makeEvent($session2));
-
-        // Session should still be marked completed (per-file failures are isolated)
-        $session2->refresh();
-        $this->assertEquals(UploadSession::STATUS_COMPLETED, $session2->status);
+        // Session is still completed — per-file exceptions are isolated
+        $session->refresh();
+        $this->assertEquals(UploadSession::STATUS_COMPLETED, $session->status);
     }
 
     // ─── Test 5: GenerateAssetThumbnail is dispatched for each created asset ──

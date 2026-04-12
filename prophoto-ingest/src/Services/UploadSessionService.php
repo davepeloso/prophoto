@@ -91,6 +91,8 @@ class UploadSessionService
             'mime_type'         => $fileAttributes['mime_type'] ?? null,
             'exif_data'         => $fileAttributes['exif_data'] ?? null,
             'upload_status'     => IngestFile::STATUS_PENDING,
+            'culled'            => false,
+            'rating'            => 0,
         ]);
 
         // Auto-apply metadata-derived tags from EXIF
@@ -103,7 +105,7 @@ class UploadSessionService
 
         DB::table('upload_sessions')
             ->where('id', $session->id)
-            ->increment('total_size_bytes', $fileAttributes['file_size_bytes']);
+            ->increment('total_size_bytes', $fileAttributes['file_size_bytes'] ?? $fileAttributes['file_size'] ?? 0);
 
         return $file;
     }

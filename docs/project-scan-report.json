@@ -2,7 +2,7 @@
   "workflow_version": "1.2.0",
   "timestamps": {
     "started": "2026-04-10T00:00:00Z",
-    "last_updated": "2026-04-11T18:00:00Z",
+    "last_updated": "2026-04-11T22:00:00Z",
     "phase_1_completion_time_minutes": 45,
     "phase_2_3_completion_time_minutes": 180,
     "sprint_1_4_completion_time_minutes": 480,
@@ -341,14 +341,16 @@
     },
     "sprint_7": {
       "name": "Phase 1c — Controller Feature Tests + N+1 Fix + Performance Indexes + Launch",
-      "status": "✅ COMPLETED",
+      "status": "✅ COMPLETED + TEST SUITE GREEN",
       "stories": [
         "N+1 fix: batchUpdateFiles now uses single whereIn + bulk DB::table update (was per-row query in foreach)",
         "22 HTTP Feature tests in Feature/IngestControllerTest.php covering all 9 JSON endpoints",
         "Migration 2026_04_11_000004: 6 performance indexes (upload_sessions status+studio_status+confirmed_at, ingest_files culled+session_status_culled+rating, ingest_image_tags type_tag)",
-        "docs/LAUNCH-CHECKLIST.md: 10-section launch checklist with sign-off table"
+        "docs/LAUNCH-CHECKLIST.md: 10-section launch checklist with sign-off table",
+        "Test suite debugging session: resolved users migration guard, Event::fake isolation, storeAs named arg bug, Carbon format mismatch, FormRequest min:1 vs present rule, cross-package skip guard for GalleryContextProjectionListenerTest"
       ],
       "points_delivered": 16,
+      "test_suite_result": "203 tests, 595 assertions, 0 failures, 0 errors, 8 skipped (cross-package, expected) — PHP 8.4.15, 2.77s",
       "key_files": [
         "prophoto-ingest/tests/Feature/IngestControllerTest.php",
         "prophoto-ingest/database/migrations/2026_04_11_000004_add_sprint7_performance_indexes.php",

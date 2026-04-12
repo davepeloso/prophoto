@@ -554,7 +554,8 @@ class CalendarMatcherServiceTest extends TestCase
         $result = $method->invoke($service, ['dateTime' => '2026-04-10T10:00:00-07:00']);
 
         $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $result);
-        $this->assertEquals('2026-04-10T17:00:00+00:00', $result->toISOString());
+        // Carbon::toISOString() uses .000000Z format in UTC; use timestamp comparison instead
+        $this->assertEquals('2026-04-10 17:00:00', $result->utc()->toDateTimeString());
     }
 
     /** @test */

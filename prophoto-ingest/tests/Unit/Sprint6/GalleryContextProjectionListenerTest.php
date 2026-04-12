@@ -24,34 +24,53 @@ use ProPhoto\Gallery\GalleryServiceProvider;
  *  5. Updates gallery.image_count by the number of projected images
  *  6. Stores ingest context columns (session_id, file_id, tags, calendar_event_id)
  *  7. Skips assets that belong to a different session
+ *
+ * NOTE: Requires prophoto-gallery installed as a sibling. Skipped in standalone
+ * prophoto-ingest test runs. Run from prophoto-gallery or the host app instead.
+ *
+ * @group cross-package
  */
 class GalleryContextProjectionListenerTest extends TestCase
 {
     protected function getPackageProviders($app): array
     {
+        if (! class_exists(\ProPhoto\Gallery\GalleryServiceProvider::class)) {
+            return [IngestServiceProvider::class];
+        }
+
         return [
             IngestServiceProvider::class,
             GalleryServiceProvider::class,
         ];
     }
 
-    protected function getEnvironmentSetUp($app): void
-    {
-        $app['config']->set('database.default', 'testing');
-        $app['config']->set('database.connections.testing', [
-            'driver'   => 'sqlite',
-            'database' => ':memory:',
-            'prefix'   => '',
-        ]);
-        $app['config']->set('queue.default', 'sync');
-    }
-
     protected function setUp(): void
     {
+        // Skip BEFORE parent::setUp() to prevent Orchestra from booting with
+        // a GalleryServiceProvider that doesn't exist in this package's vendor.
+        if (! class_exists('ProPhoto\\Gallery\\GalleryServiceProvider')) {
+            $this->markTestSkipped(
+                'prophoto-gallery not installed — run these tests from prophoto-gallery or the host app'
+            );
+            return;
+        }
+
         parent::setUp();
         $this->loadMigrationsFrom(__DIR__ . '/../../../database/migrations');
         $this->loadMigrationsFrom(__DIR__ . '/../../../../prophoto-gallery/database/migrations');
         $this->loadMigrationsFrom(__DIR__ . '/../../../../prophoto-assets/database/migrations');
+    }
+
+    protected function getEnvironmentSetUp($app): void
+    {
+        $app['config']->set('database.default', 'testing');
+        $app['config']->set('database.connections.testing', [
+            'driver'                  => 'sqlite',
+            'database'                => ':memory:',
+            'prefix'                  => '',
+            'foreign_key_constraints' => false,
+        ]);
+        $app['config']->set('queue.default', 'sync');
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
