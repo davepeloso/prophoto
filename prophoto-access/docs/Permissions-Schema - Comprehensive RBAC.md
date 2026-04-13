@@ -33,6 +33,8 @@
 'can_comment_on_images'      *// Add notes to images*
 'can_request_edits'          *// Request image edits*
 'can_mark_gallery_complete'  *// Mark gallery as complete*
+'can_version_images'         *// Update/replace image versions (caps 3 & 4)*
+'can_duplicate_images'       *// Copy image association across galleries (cap 10)*
 ```
 ## AI Portrait Generation
 
@@ -44,6 +46,7 @@
 'can_download_ai_portraits'  *// Download AI portraits*
 'can_disable_ai_portraits'   *// Disable AI for subjects (client override)*
 'can_view_ai_costs'          *// View AI generation costs*
+'can_consent_ai_use'         *// Toggle per-image AI training consent (cap 7)*
 ```
 ## Sessions & Booking
 
@@ -130,12 +133,15 @@
 | can_comment_on_images | ✅ | ✅ | ✅ | Image notes |
 | can_request_edits | ❌ | ❌ | ✅ | Subject requests only |
 | can_mark_gallery_complete | ✅ | ❌ | ❌ |  |
+| can_version_images | ✅ | ❌ | ❌ | Update/replace image versions |
+| can_duplicate_images | ✅ | ❌ | ❌ | Copy image across galleries |
 | AI Portraits |  |  |  |  |
 | can_enable_ai_portraits | ✅ | ❌ | ❌ | Photographer controls cost |
 | can_train_ai_model | ✅ | ❌ | ❌ | Photographer initiates |
 | can_generate_ai_portraits | ✅ | ✅ | ✅ | If enabled for gallery |
 | can_disable_ai_portraits | ✅ | ✅ (org) | ❌ | Client can disable for subjects |
 | can_view_ai_costs | ✅ | ❌ | ❌ | Photographer only |
+| can_consent_ai_use | ✅ | ✅ (org) | ✅ (own) | Per-image AI training consent toggle |
 | Sessions & Booking |  |  |  |  |
 | can_create_session | ✅ | ❌ | ❌ |  |
 | can_edit_session | ✅ | ❌ | ❌ |  |
@@ -385,6 +391,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_comment_on_images',
             'can_request_edits',
             'can_mark_gallery_complete',
+            'can_version_images',
+            'can_duplicate_images',
             
             *// AI*
             'can_enable_ai_portraits',
@@ -394,6 +402,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_download_ai_portraits',
             'can_disable_ai_portraits',
             'can_view_ai_costs',
+            'can_consent_ai_use',
             
             *// Sessions*
             'can_create_session',
