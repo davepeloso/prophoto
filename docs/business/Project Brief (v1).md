@@ -22,7 +22,7 @@ It connects:
 
 “Looks like the Alma Mater Footwear Lifestyle shoot went well.  
 You finished 15 minutes early.  
-Are we culling these now or moving to delivery?”
+Are we culling these now or moving to delivery?” Example, in reality it will be more like "Looks like the Alma Mater Footwear Lifestyle shoot went well. Are we culling these now or moving to delivery?" or just a list of calender event to choos from.
 
 This is the product.
 

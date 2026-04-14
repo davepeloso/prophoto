@@ -179,26 +179,57 @@ class IngestController extends Controller
      * Confirm an upload session, optionally setting the target gallery.
      * Triggers downstream asset creation.
      *
+     * Idempotent: if the session is already confirmed or completed, returns 200
+     * with the current state and "already_processed": true — no event is
+     * re-dispatched and no assets are duplicated.
+     *
      * Request body:
      *   { gallery_id?: int }
      *
-     * Response (200):
-     *   { session_id: string, status: string, gallery_id: int|null }
+     * Response (200) — fresh confirmation:
+     *   {
+     *     session_id:        string,
+     *     status:            "confirmed",
+     *     gallery_id:        int|null,
+     *     already_processed: false
+     *   }
+     *
+     * Response (200) — idempotent (session was already confirmed/completed):
+     *   {
+     *     session_id:        string,
+     *     status:            "confirmed"|"completed"|"failed",
+     *     gallery_id:        int|null,
+     *     already_processed: true
+     *   }
+     *
+     * Response (422) — session in an unconfirmable state (initiated/failed/cancelled):
+     *   { error: "Cannot confirm session [id] with status [status]." }
      */
     public function confirmSession(string $sessionId): JsonResponse
     {
-        $galleryId = request()->input('gallery_id');
+        $galleryId       = request()->input('gallery_id');
+        $statusBefore    = null;
 
         try {
+            // Capture status before the call so we can detect the idempotent path
+            $existing     = \ProPhoto\Ingest\Models\UploadSession::find($sessionId);
+            $statusBefore = $existing?->status;
+
             $session = $this->sessionService->confirmSession(
                 $sessionId,
                 galleryId: $galleryId ? (int) $galleryId : null,
             );
 
+            $alreadyProcessed = in_array($statusBefore, [
+                \ProPhoto\Ingest\Models\UploadSession::STATUS_CONFIRMED,
+                \ProPhoto\Ingest\Models\UploadSession::STATUS_COMPLETED,
+            ], true);
+
             return response()->json([
-                'session_id' => $session->id,
-                'status'     => $session->status,
-                'gallery_id' => $session->gallery_id,
+                'session_id'        => $session->id,
+                'status'            => $session->status,
+                'gallery_id'        => $session->gallery_id,
+                'already_processed' => $alreadyProcessed,
             ]);
         } catch (\RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);

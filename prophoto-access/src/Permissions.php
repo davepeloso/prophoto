@@ -22,6 +22,10 @@ class Permissions
     public const REQUEST_EDITS = 'can_request_edits';
     public const MARK_GALLERY_COMPLETE = 'can_mark_gallery_complete';
 
+    // Gallery Permissions - Phase 2 Proofing Pipeline
+    public const VERSION_IMAGES = 'can_version_images';     // Update/replace image versions (caps 3 & 4)
+    public const DUPLICATE_IMAGES = 'can_duplicate_images'; // Copy image association across galleries (cap 10)
+
     // Gallery Permissions - Collections
     public const CREATE_COLLECTION = 'can_create_collection';
     public const VIEW_COLLECTION = 'can_view_collection';
@@ -53,6 +57,15 @@ class Permissions
     public const DOWNLOAD_AI_PORTRAITS = 'can_download_ai_portraits';
     public const DISABLE_AI_PORTRAITS = 'can_disable_ai_portraits';
     public const VIEW_AI_COSTS = 'can_view_ai_costs';
+    public const CONSENT_AI_USE = 'can_consent_ai_use'; // Per-image AI training consent (cap 7)
+
+    // RBAC Phase 2 deferred — constants only, not yet seeded
+    public const VIEW_UPLOAD_SESSION   = 'can_view_upload_session';   // See session status/progress
+    public const MANAGE_UPLOAD_SESSION = 'can_manage_upload_session'; // Confirm/cancel sessions
+    public const VIEW_INGEST_FILES     = 'can_view_ingest_files';     // See individual file status
+    public const MANAGE_ASSETS         = 'can_manage_assets';         // Reprocess, regenerate derivatives
+    public const DELETE_ASSET          = 'can_delete_asset';          // Permanent asset deletion
+    public const ACCESS_ORIGINAL_FILE  = 'can_access_original_file';  // Download raw original file
 
     // Sessions & Booking Permissions
     public const CREATE_SESSION = 'can_create_session';

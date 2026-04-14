@@ -95,11 +95,11 @@ done
 
 step "Creating Laravel application: $APP_NAME (Laravel 12)"
 
-# Pin to Laravel 12 — our packages require ^11.0|^12.0 and composer create-project
-# always grabs the latest release. Laravel 13+ would break all package constraints.
-composer create-project --prefer-dist laravel/laravel "$APP_DIR" "12.*" --no-interaction -q
+# Install Laravel 12 skeleton — ProPhoto packages support ^11.0|^12.0 but not Laravel 13 yet
+# We use the last Laravel 12 compatible skeleton version
+composer create-project --prefer-dist laravel/laravel "$APP_DIR" "^12.0" --no-interaction -q
 
-ok "Laravel skeleton created at $APP_DIR"
+ok "Laravel 12 skeleton created at $APP_DIR"
 
 # ─── Configure SQLite database ───────────────────────────────────────────────
 
@@ -173,17 +173,20 @@ composer require laravel/sanctum --no-interaction --no-progress --quiet
 php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider" \
   --force --no-interaction >/dev/null 2>&1
 
-# Patch User model to use HasApiTokens — Laravel skeleton doesn't include this
-# by default, but createToken() won't exist without it.
+# Patch User model with all required traits:
+#   HasApiTokens       — Sanctum token generation (createToken())
+#   HasRoles           — Spatie role assignment (assignRole(), hasRole())
+#   HasContextualPermissions — ProPhoto gallery-scoped permission checks
 USER_MODEL="$APP_DIR/app/Models/User.php"
-if ! grep -q "HasApiTokens" "$USER_MODEL"; then
-  # Add the use import after the Notifiable import line
-  sed -i.bak "s/use Illuminate\\\\Notifications\\\\Notifiable;/use Illuminate\\\\Notifications\\\\Notifiable;\nuse Laravel\\\\Sanctum\\\\HasApiTokens;/" "$USER_MODEL"
-  # Add HasApiTokens to the trait use statement
-  sed -i.bak "s/use HasFactory, Notifiable;/use HasApiTokens, HasFactory, Notifiable;/" "$USER_MODEL"
-  rm -f "$USER_MODEL.bak"
-fi
-ok "Sanctum installed + User model patched with HasApiTokens"
+
+# Add use imports after the Notifiable import
+sed -i.bak "s/use Illuminate\\\\Notifications\\\\Notifiable;/use Illuminate\\\\Notifications\\\\Notifiable;\nuse Laravel\\\\Sanctum\\\\HasApiTokens;\nuse Spatie\\\\Permission\\\\Traits\\\\HasRoles;\nuse ProPhoto\\\\Access\\\\Traits\\\\HasContextualPermissions;/" "$USER_MODEL"
+
+# Add all traits to the use statement
+sed -i.bak "s/use HasFactory, Notifiable;/use HasApiTokens, HasFactory, HasRoles, HasContextualPermissions, Notifiable;/" "$USER_MODEL"
+
+rm -f "$USER_MODEL.bak"
+ok "Sanctum installed + User model patched with HasApiTokens, HasRoles, HasContextualPermissions"
 
 step "Requiring all packages (symlinked, no copy)"
 
@@ -206,10 +209,19 @@ fi
 
 step "Publishing and running migrations from all packages"
 
-# Laravel 12 skeleton already includes personal_access_tokens migration.
-# We do NOT publish Sanctum migrations separately — that would create a
-# duplicate and crash. Package migrations are auto-loaded via each
-# ServiceProvider's loadMigrationsFrom() registered in extra.laravel.
+# Spatie laravel-permission ships its own migrations (permissions, roles,
+# model_has_permissions, etc.) inside the vendor package. Unlike our own
+# packages which use loadMigrationsFrom() in their ServiceProviders, Spatie
+# requires an explicit vendor:publish to copy migrations into database/migrations/
+# before artisan migrate can see them.
+#
+# Laravel 12 skeleton already includes personal_access_tokens — we do NOT
+# publish Sanctum migrations separately (would create a duplicate and crash).
+php artisan vendor:publish \
+  --provider="Spatie\Permission\PermissionServiceProvider" \
+  --force --no-interaction >/dev/null 2>&1
+ok "Spatie permission migrations published"
+
 php artisan migrate --force --no-interaction
 
 ok "Migrations complete"

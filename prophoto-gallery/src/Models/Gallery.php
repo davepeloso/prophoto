@@ -12,6 +12,7 @@ use ProPhoto\Access\Models\Studio;
 use ProPhoto\Access\Models\Organization;
 use ProPhoto\Booking\Models\Session;
 use ProPhoto\Ai\Models\AiGeneration;
+use ProPhoto\Gallery\Models\GalleryPendingType;
 
 class Gallery extends Model
 {
@@ -21,6 +22,8 @@ class Gallery extends Model
         'studio_id',
         'organization_id',
         'session_id',
+        'type',
+        'mode_config',
         'subject_name',
         'access_code',
         'magic_link_token',
@@ -38,15 +41,37 @@ class Gallery extends Model
     ];
 
     protected $casts = [
+        'type'                 => 'string',
+        'mode_config'          => 'array',
         'magic_link_expires_at' => 'datetime',
-        'ai_enabled' => 'boolean',
-        'image_count' => 'integer',
-        'approved_count' => 'integer',
-        'download_count' => 'integer',
-        'last_activity_at' => 'datetime',
-        'delivered_at' => 'datetime',
-        'completed_at' => 'datetime',
-        'archived_at' => 'datetime',
+        'ai_enabled'           => 'boolean',
+        'image_count'          => 'integer',
+        'approved_count'       => 'integer',
+        'download_count'       => 'integer',
+        'last_activity_at'     => 'datetime',
+        'delivered_at'         => 'datetime',
+        'completed_at'         => 'datetime',
+        'archived_at'          => 'datetime',
+    ];
+
+    /**
+     * Gallery type constants.
+     *
+     * proofing     — Full pipeline: identity gate, approval workflow, activity ledger
+     * presentation — View-only public link: no identity, no pipeline, no downloads
+     */
+    public const TYPE_PROOFING     = 'proofing';
+    public const TYPE_PRESENTATION = 'presentation';
+
+    /**
+     * Default mode_config for a new proofing gallery.
+     */
+    public const DEFAULT_MODE_CONFIG = [
+        'min_approvals'       => 1,
+        'max_approvals'       => null,   // unlimited
+        'max_pending'         => null,   // unlimited
+        'ratings_enabled'     => true,
+        'pipeline_sequential' => true,   // must approve before going pending
     ];
 
     /**
@@ -133,6 +158,49 @@ class Gallery extends Model
     public function aiGeneration(): HasOne
     {
         return $this->hasOne(AiGeneration::class);
+    }
+
+    /**
+     * Get the pending type menu items for this gallery.
+     * Populated from studio_pending_type_templates at gallery creation.
+     */
+    public function pendingTypes(): HasMany
+    {
+        return $this->hasMany(GalleryPendingType::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Get only the enabled pending types for this gallery.
+     */
+    public function enabledPendingTypes(): HasMany
+    {
+        return $this->hasMany(GalleryPendingType::class)
+            ->where('is_enabled', true)
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * Check if this is a proofing gallery (full pipeline enabled).
+     */
+    public function isProofing(): bool
+    {
+        return $this->type === self::TYPE_PROOFING;
+    }
+
+    /**
+     * Check if this is a presentation gallery (view-only, no pipeline).
+     */
+    public function isPresentation(): bool
+    {
+        return $this->type === self::TYPE_PRESENTATION;
+    }
+
+    /**
+     * Get resolved mode config, falling back to defaults.
+     */
+    public function getModeConfig(): array
+    {
+        return array_merge(self::DEFAULT_MODE_CONFIG, $this->mode_config ?? []);
     }
 
     /**

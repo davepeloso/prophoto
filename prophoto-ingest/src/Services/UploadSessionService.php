@@ -246,12 +246,34 @@ class UploadSessionService
      * Mark a session as confirmed by the user.
      * This is the trigger for downstream asset creation via events.
      *
-     * @throws \RuntimeException if session is not in a confirmable state
+     * Idempotency: if the session is already confirmed or completed, return the
+     * current state without re-dispatching IngestSessionConfirmed (which would
+     * create duplicate assets). This makes the endpoint safe for Postman retries
+     * and re-runs against a sandbox that was not fully reset.
+     *
+     * @throws \RuntimeException if session is in an unrecoverable / pre-upload state
      */
     public function confirmSession(string $sessionId, ?int $galleryId = null): UploadSession
     {
         $session = $this->findOrFail($sessionId);
 
+        // ── Idempotency guard ─────────────────────────────────────────────────
+        // Already confirmed or completed — return current state, no re-dispatch.
+        $alreadyDoneStatuses = [
+            UploadSession::STATUS_CONFIRMED,
+            UploadSession::STATUS_COMPLETED,
+        ];
+
+        if (in_array($session->status, $alreadyDoneStatuses, true)) {
+            Log::info('UploadSession: confirmSession called on already-processed session (idempotent no-op)', [
+                'session_id' => $sessionId,
+                'status'     => $session->status,
+            ]);
+
+            return $session;
+        }
+
+        // ── Gate: only uploading or tagging can be confirmed ──────────────────
         $confirmableStatuses = [
             UploadSession::STATUS_UPLOADING,
             UploadSession::STATUS_TAGGING,

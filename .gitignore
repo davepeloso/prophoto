@@ -43,3 +43,6 @@ prophoto-sandbox/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+#postman
+postman/

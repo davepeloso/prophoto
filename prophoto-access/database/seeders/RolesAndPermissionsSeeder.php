@@ -36,6 +36,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_request_edits',
             'can_mark_gallery_complete',
 
+            // Galleries - Phase 2 Proofing Pipeline
+            'can_version_images',
+            'can_duplicate_images',
+
             // Galleries - Collections
             'can_create_collection',
             'can_view_collection',
@@ -67,7 +71,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_download_ai_portraits',
             'can_disable_ai_portraits',
             'can_view_ai_costs',
-            
+            'can_consent_ai_use',
+
             // Sessions
             'can_create_session',
             'can_view_session',
@@ -150,12 +155,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_send_message',
             'can_view_messages',
             'can_manage_notifications',
-            // New gallery permissions
+            // Gallery permissions
             'can_view_collection',
             'can_create_share_link',
             'can_export_gallery',
+            // Phase 2 — AI consent (org-level)
+            'can_consent_ai_use',
         ]);
-        
+
         $guestUser = Role::findOrCreate('guest_user');
         $guestUser->givePermissionTo([
             'can_view_gallery',
@@ -167,8 +174,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'can_generate_ai_portraits',
             'can_view_ai_portraits',
             'can_share_gallery',
+            // Phase 2 — AI consent (own images only, enforced contextually)
+            'can_consent_ai_use',
         ]);
-        
+
         $vendorUser = Role::findOrCreate('vendor_user');
         // Vendors get minimal permissions, mostly contextual
     }

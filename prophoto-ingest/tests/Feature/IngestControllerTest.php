@@ -156,6 +156,69 @@ class IngestControllerTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_confirm_session_includes_already_processed_false_on_fresh_confirm(): void
+    {
+        $session = $this->makeSession(UploadSession::STATUS_UPLOADING);
+
+        $this->postJson("/api/ingest/sessions/{$session->id}/confirm")
+            ->assertStatus(200)
+            ->assertJsonFragment(['already_processed' => false]);
+    }
+
+    public function test_confirm_session_is_idempotent_when_already_confirmed(): void
+    {
+        // Pre-set the session to confirmed (as if a prior call already ran)
+        $session = $this->makeSession(UploadSession::STATUS_CONFIRMED);
+
+        $this->postJson("/api/ingest/sessions/{$session->id}/confirm")
+            ->assertStatus(200)
+            ->assertJsonFragment([
+                'session_id'        => $session->id,
+                'status'            => UploadSession::STATUS_CONFIRMED,
+                'already_processed' => true,
+            ]);
+
+        // Critical: event must NOT be dispatched again
+        Event::assertNotDispatched(IngestSessionConfirmed::class);
+    }
+
+    public function test_confirm_session_is_idempotent_when_already_completed(): void
+    {
+        // Pre-set the session to completed (as in the sandbox smoke-test scenario)
+        $session = $this->makeSession(UploadSession::STATUS_COMPLETED);
+
+        $this->postJson("/api/ingest/sessions/{$session->id}/confirm")
+            ->assertStatus(200)
+            ->assertJsonFragment([
+                'session_id'        => $session->id,
+                'status'            => UploadSession::STATUS_COMPLETED,
+                'already_processed' => true,
+            ]);
+
+        // Critical: event must NOT be dispatched again (would duplicate assets)
+        Event::assertNotDispatched(IngestSessionConfirmed::class);
+    }
+
+    public function test_confirm_session_still_rejects_failed_status(): void
+    {
+        // failed is NOT in the idempotency set — it requires manual intervention,
+        // not a silent success. The 422 guides the caller to investigate.
+        $session = $this->makeSession(UploadSession::STATUS_FAILED);
+
+        $this->postJson("/api/ingest/sessions/{$session->id}/confirm")
+            ->assertStatus(422)
+            ->assertJsonFragment(['error' => "Cannot confirm session [{$session->id}] with status [failed]."]);
+    }
+
+    public function test_confirm_session_still_rejects_initiated_status(): void
+    {
+        // initiated means no files have been registered/uploaded yet — not confirmable
+        $session = $this->makeSession(UploadSession::STATUS_INITIATED);
+
+        $this->postJson("/api/ingest/sessions/{$session->id}/confirm")
+            ->assertStatus(422);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // GET /api/ingest/sessions/{id}/preview-status
     // ═══════════════════════════════════════════════════════════════════════════
