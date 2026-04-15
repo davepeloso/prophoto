@@ -1,6 +1,6 @@
 <?php
 
-namespace ProPhoto\Ai\Models;
+namespace ProPhoto\AI\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +10,9 @@ class AiGenerationRequest extends Model
 {
     protected $fillable = [
         'ai_generation_id',
+        'provider_key',
         'request_number',
+        'external_request_id',
         'custom_prompt',
         'used_default_prompt',
         'generated_portrait_count',
@@ -19,6 +21,7 @@ class AiGenerationRequest extends Model
         'super_resolution',
         'status',
         'error_message',
+        'provider_metadata',
         'liability_accepted_at',
         'requested_by_user_id',
     ];
@@ -31,6 +34,7 @@ class AiGenerationRequest extends Model
         'background_removal' => 'boolean',
         'super_resolution' => 'boolean',
         'liability_accepted_at' => 'datetime',
+        'provider_metadata' => 'array',
     ];
 
     /**

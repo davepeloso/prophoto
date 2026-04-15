@@ -32,6 +32,7 @@ use ProPhoto\Gallery\Enums\GalleryTemplateDefinition;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\Actions\AddImagesFromSessionAction;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\Actions\GenerateShareLinkAction;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\Pages;
+use ProPhoto\AI\Filament\RelationManagers\AiGenerationRelationManager;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\RelationManagers\GalleryActivityRelationManager;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\RelationManagers\GalleryImagesRelationManager;
 use ProPhoto\Gallery\Filament\Resources\GalleryResource\RelationManagers\GalleryShareRelationManager;
@@ -293,6 +294,7 @@ class GalleryResource extends Resource
     {
         return [
             GalleryImagesRelationManager::class,
+            AiGenerationRelationManager::class,
             GalleryShareRelationManager::class,
             GalleryActivityRelationManager::class,
         ];

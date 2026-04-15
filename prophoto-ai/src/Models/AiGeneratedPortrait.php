@@ -1,6 +1,6 @@
 <?php
 
-namespace ProPhoto\Ai\Models;
+namespace ProPhoto\AI\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,9 +11,11 @@ class AiGeneratedPortrait extends Model
 
     protected $fillable = [
         'ai_generation_request_id',
+        'storage_driver',
         'imagekit_file_id',
         'imagekit_url',
         'imagekit_thumbnail_url',
+        'original_provider_url',
         'file_size',
         'sort_order',
         'downloaded_by_subject',

@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use ProPhoto\Access\Models\Studio;
 use ProPhoto\Access\Models\Organization;
 use ProPhoto\Booking\Models\Session;
-use ProPhoto\Ai\Models\AiGeneration;
+use ProPhoto\AI\Models\AiGeneration;
 use ProPhoto\Gallery\Models\GalleryPendingType;
 
 class Gallery extends Model

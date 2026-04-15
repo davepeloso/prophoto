@@ -48,6 +48,7 @@ PACKAGES=(
   "prophoto-ingest"
   "prophoto-interactions"
   "prophoto-notifications"
+  "prophoto-ai"
 )
 
 # ─── Colours ─────────────────────────────────────────────────────────────────

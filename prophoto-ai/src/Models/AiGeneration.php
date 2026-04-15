@@ -1,6 +1,6 @@
 <?php
 
-namespace ProPhoto\Ai\Models;
+namespace ProPhoto\AI\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,13 +12,16 @@ class AiGeneration extends Model
     protected $fillable = [
         'gallery_id',
         'subject_user_id',
+        'provider_key',
         'fine_tune_id',
+        'external_model_id',
         'training_image_count',
         'model_status',
         'fine_tune_cost',
         'model_created_at',
         'model_expires_at',
         'error_message',
+        'provider_metadata',
     ];
 
     protected $casts = [
@@ -26,6 +29,7 @@ class AiGeneration extends Model
         'fine_tune_cost' => 'decimal:2',
         'model_created_at' => 'datetime',
         'model_expires_at' => 'datetime',
+        'provider_metadata' => 'array',
     ];
 
     /**
