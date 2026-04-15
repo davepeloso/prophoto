@@ -311,6 +311,42 @@ php artisan migrate --force --no-interaction
 
 ok "Migrations complete"
 
+# ─── Testing infrastructure ─────────────────────────────────────────────────
+
+step "Installing Orchestra Testbench for package integration tests"
+
+composer require orchestra/testbench:"^10.0" \
+  --dev \
+  --with-all-dependencies \
+  --no-interaction \
+  --no-progress --quiet
+
+ok "Orchestra Testbench installed"
+
+# Register package test suites in phpunit.xml so `php artisan test --testsuite=AI`
+# (and future package suites) work from the sandbox app with the full framework.
+# Uses PHP to safely manipulate XML without fragile sed replacements.
+PHPUNIT_XML="$APP_DIR/phpunit.xml"
+php -r "
+\$xml = new DOMDocument();
+\$xml->preserveWhiteSpace = false;
+\$xml->formatOutput = true;
+\$xml->load('$PHPUNIT_XML');
+
+\$testsuites = \$xml->getElementsByTagName('testsuites')->item(0);
+
+// Add AI package test suite
+\$suite = \$xml->createElement('testsuite');
+\$suite->setAttribute('name', 'AI');
+\$dir = \$xml->createElement('directory', '../prophoto-ai/tests');
+\$suite->appendChild(\$dir);
+\$testsuites->appendChild(\$suite);
+
+\$xml->save('$PHPUNIT_XML');
+"
+
+ok "Package test suites registered in phpunit.xml"
+
 # ─── Queue + Cache config ────────────────────────────────────────────────────
 
 step "Configuring queue and cache for local use"
@@ -384,6 +420,9 @@ echo -e "    rm -rf $APP_DIR"
 echo ""
 echo -e "  ${CYAN}To re-seed:${NC}"
 echo -e "    cd $APP_DIR && php artisan db:seed --class=SandboxSeeder --force"
+echo ""
+echo -e "  ${CYAN}To run package tests:${NC}"
+echo -e "    cd $APP_DIR && php artisan test --testsuite=AI"
 echo ""
 echo -e "  ${YELLOW}Note: packages are symlinked — edits to ../prophoto-*${NC}"
 echo -e "  ${YELLOW}are reflected immediately, no re-install needed.${NC}"

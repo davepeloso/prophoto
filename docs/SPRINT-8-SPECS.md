@@ -1,6 +1,8 @@
 # Sprint 8 — AI Generation Provider Abstraction
 ## Spec Document
 
+**Status:** ✅ Complete (2026-04-15) — all 5 stories landed, 152 tests / 396 assertions passing via `php artisan test --testsuite=AI` from the sandbox app.
+
 **Sprint date:** April 2026
 **Primary package:** `prophoto-ai` (provider contracts, registry, Astria implementation, ImageKit storage, Filament UI)
 **Secondary package:** `prophoto-contracts` (shared AI generation contracts + DTOs)

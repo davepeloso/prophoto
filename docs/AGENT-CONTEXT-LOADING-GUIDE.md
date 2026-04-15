@@ -50,6 +50,7 @@ Use the Architecture Index (`ARCHITECTURE-ARCHITECTURE-INDEX.md`) to determine w
 
 | Sandbox / host app / Filament / integration testing | `SANDBOX-SETUP-GUIDE.md`, `Filament-Namespace-Issue.md`. Also read `create-sandbox.sh` and `SandboxSeeder.php` if modifying the sandbox. |
 | Any Filament resource, action, widget, or relation manager | `Filament-Namespace-Issue.md` — **MANDATORY**. Filament v4 moved actions, layout components, utility classes, and property types. Every namespace mapping is documented here. Writing Filament code without reading this doc WILL produce runtime errors. |
+| AI generation / providers / training / portraits / ImageKit | `SPRINT-8-SPECS.md`, `AI-ARCHITECTURE.md`, `ARCHITECTURE-AI-PROVIDER-CONTRACTS.md`, `AI-ASTRIA-API-DETAILS.md`, `AI-ASTRIA-SPECS.md`. Also read `AiProviderContract`, `AiStorageContract` in `prophoto-contracts/src/Contracts/AI/`, plus the registry, orchestration service, and job classes in `prophoto-ai/src/`. |
 
 ### Tier 3 — Read When Modifying a Specific Package
 
@@ -65,6 +66,7 @@ Before changing any package, read its README:
 | `prophoto-gallery` | `GALLERY-PACKAGE-README.md` |
 | `prophoto-notifications` | `PHASE-5-NOTIFICATIONS-NOTES.md` (README exists but is minimal — phase notes are authoritative) |
 | `prophoto-access` | `ACCESS-PACKAGE-README.md` |
+| `prophoto-ai` | `SPRINT-8-SPECS.md` + `AI-ARCHITECTURE.md` (no standalone README yet — sprint spec + architecture docs are authoritative) |
 
 ---
 
@@ -182,6 +184,21 @@ These are extracted from RULES.md and SYSTEM.md for fast reference. The source d
 - **After installing Filament**, run `php artisan filament:assets` to publish CSS/JS. Without this, the admin panel renders unstyled.
 - **`databaseNotifications()`** requires Laravel's `notifications` table — create it with `php artisan make:notifications-table` before migrating.
 
+### If you're working on AI (Sprint 8+):
+
+- **Two-layer model: generation vs. delivery.** Generation providers (Astria, future Fal.ai/Magnific/Claid.ai) are compute engines — their URLs are transient, never canonical. Delivery is always ImageKit (backed by DigitalOcean Spaces). All post-processing (bgremove, retouch, upscale) happens via ImageKit URL transforms, not at generation time.
+- **Providers are compute, not truth.** Always: provider output → fetch → persist to ImageKit → serve via delivery layer. Never treat a provider URL as a production asset.
+- **Contracts live in `prophoto-contracts/src/Contracts/AI/` and `src/DTOs/AI/`.** `AiProviderContract` defines the generation seam, `AiStorageContract` defines the delivery seam. `Money` is integer cents. `TrainingStatus`/`GenerationStatus` are enums. **Check these before inventing new types.**
+- **Registry pattern.** `AiProviderRegistry` (in `prophoto-ai`) uses descriptor + lazy-resolver — providers register with `AiProviderDescriptor` and a closure that builds them. Never instantiate providers directly in consumer code; always resolve from the registry.
+- **Orchestration is queue-driven.** `AiOrchestrationService::initiateTraining()` and `initiateGeneration()` validate + dispatch jobs on the `ai` queue. Jobs are self-dispatching pollers with exponential backoff (training: 30s→60s→120s, cap 24h; generation: 15s→30s→60s, cap 2h). Do not poll synchronously.
+- **Cost tracking.** `AiCostService` estimates via `registry.resolve()->estimateCost()` and aggregates actual spend from `AiGeneration.fine_tune_cost` + `AiGenerationRequest` cost columns. All money is stored in cents (integer) and exposed via the `Money` DTO.
+- **Events:** `AiModelTrained` fires on training completion, `AiGenerationCompleted` fires after portraits are persisted to ImageKit. Consume these in downstream packages — never poll AI tables directly.
+- **Filament UI is a RelationManager on EditGallery.** `AiGenerationRelationManager` lives in `prophoto-ai/src/Filament/RelationManagers/` and is wired into `GalleryResource::getRelations()` in `prophoto-gallery`. It polls every 5s while training/generating, shows header actions (start training, generate), and a row action that opens a portrait-grid modal.
+- **Logging is injectable** — every service and job constructor takes `Psr\Log\LoggerInterface` (defaults to `NullLogger`). Use it instead of `Log::` facade so tests can swap in a spy.
+- **Astria specifics.** Bearer auth, POST /tunes for training, POST /prompts for generation. Training needs 8–20 public 1:1 images under 3MB. Models auto-expire after 30 days; we track `model_expires_at` and surface warnings in the UI but do NOT auto-extend.
+- **Testing:** Package-level tests run via Orchestra Testbench from the package; Filament relation-manager tests run from the **app** (`prophoto-app`) because Filament classes aren't package deps. The sandbox script registers `../prophoto-ai/tests` as the `AI` testsuite in the app's `phpunit.xml` — run via `php artisan test --testsuite=AI` from the sandbox app.
+- **Sandbox awareness.** `create-sandbox.sh` includes `prophoto-ai` in its PACKAGES array, installs Orchestra Testbench in the app with `--with-all-dependencies`, and registers the AI testsuite. Any new package must be added to both the PACKAGES array AND the testsuite registration block — this pattern is how every future package gets tested from a clean sandbox.
+
 ### If you're working on Notifications (Sprint 6+):
 
 - `prophoto-notifications` is a **downstream consumer** — it listens to events from other packages but never mutates their state.
@@ -232,7 +249,13 @@ Always define (from AGENTS.md):
 | Gallery package-level test suite (Orchestra Testbench) | 88 tests across 8 feature test files |
 | Notifications package-level test suite (Orchestra Testbench) | 28 tests across 3 feature test files |
 | Filament v4 compatibility (all gallery Filament code) | Complete — all namespace migrations applied, sandbox builds cleanly |
-| Sandbox (`create-sandbox.sh`) | Complete — Filament v4, notifications table, asset publishing, all 9 packages |
+| Sandbox (`create-sandbox.sh`) | Complete — Filament v4, notifications table, asset publishing, all 10 packages (incl. prophoto-ai), Testbench auto-install, per-package testsuite registration |
+| AI Sprint 8.1 (contracts + registry: AiProviderContract, AiStorageContract, DTOs, enums, AiProviderRegistry) | Complete — 32 tests |
+| AI Sprint 8.2 (Astria provider + ImageKit storage) | Complete — 63 tests |
+| AI Sprint 8.3 (orchestration service, cost service, polling jobs, events) | Complete — 20 tests |
+| AI Sprint 8.4 (Filament AiGenerationRelationManager on EditGallery) | Complete — wired into GalleryResource, portrait-grid modal, 5s polling during active runs |
+| AI Sprint 8.5 (schema additions, config, service provider wiring) | Complete — 33 tests |
+| AI package-level test suite (Orchestra Testbench, run from app) | 152 tests, 396 assertions via `php artisan test --testsuite=AI` |
 | 8 empty scaffolds (audit, downloads, etc.) | To be archived |
 
 ---
@@ -267,4 +290,4 @@ Then load the relevant Tier 2 docs based on the task.
 
 *This document is authoritative for agent onboarding. If agent behavior contradicts the docs listed here, the agent is wrong — not the docs.*
 
-*Last updated: 2026-04-15 — Sprint 6 complete (download tracking, view notifications, download stats widget), Filament v4 migration complete, sandbox fully operational*
+*Last updated: 2026-04-15 — Sprint 8 complete (provider-agnostic AI generation: Astria + ImageKit, orchestration + polling jobs, Filament relation manager), all 5 stories passing with 152 tests / 396 assertions, sandbox script now installs Orchestra Testbench and auto-registers per-package testsuites*
