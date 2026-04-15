@@ -4,7 +4,11 @@ namespace ProPhoto\Gallery\Filament;
 
 use Filament\Contracts\Plugin;
 use Filament\Panel;
+use ProPhoto\Gallery\Filament\Resources\AccessLogResource;
+use ProPhoto\Gallery\Filament\Resources\GalleryResource;
 use ProPhoto\Gallery\Filament\Resources\PendingTypeTemplateResource;
+use ProPhoto\Gallery\Filament\Widgets\GalleryDownloadStatsWidget;
+use ProPhoto\Gallery\Filament\Widgets\RecentSubmissionsWidget;
 
 /**
  * GalleryPlugin
@@ -17,11 +21,19 @@ use ProPhoto\Gallery\Filament\Resources\PendingTypeTemplateResource;
  *   ])
  *
  * Resources registered:
+ *   - GalleryResource           (Galleries → Galleries)
  *   - PendingTypeTemplateResource (Gallery Settings → Pending Type Templates)
+ *
+ * Widgets registered:
+ *   - RecentSubmissionsWidget   (Dashboard — recent proofing submissions)
  */
 class GalleryPlugin implements Plugin
 {
+    protected bool $hasGalleries            = true;
     protected bool $hasPendingTypeTemplates = true;
+    protected bool $hasAccessLogs          = true;
+    protected bool $hasSubmissionsWidget       = true;
+    protected bool $hasDownloadStatsWidget    = true;
 
     public function getId(): string
     {
@@ -32,11 +44,25 @@ class GalleryPlugin implements Plugin
     {
         $resources = [];
 
+        if ($this->hasGalleries) {
+            $resources[] = GalleryResource::class;
+        }
+
         if ($this->hasPendingTypeTemplates) {
             $resources[] = PendingTypeTemplateResource::class;
         }
 
+        if ($this->hasAccessLogs) {
+            $resources[] = AccessLogResource::class;
+        }
+
         $panel->resources($resources);
+
+        if ($this->hasSubmissionsWidget) {
+            $panel->widgets([
+                RecentSubmissionsWidget::class,
+            ]);
+        }
     }
 
     public function boot(Panel $panel): void
@@ -58,6 +84,26 @@ class GalleryPlugin implements Plugin
     }
 
     /**
+     * Enable or disable the Galleries resource.
+     */
+    public function galleries(bool $condition = true): static
+    {
+        $this->hasGalleries = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Enable or disable the Recent Submissions dashboard widget.
+     */
+    public function submissionsWidget(bool $condition = true): static
+    {
+        $this->hasSubmissionsWidget = $condition;
+
+        return $this;
+    }
+
+    /**
      * Enable or disable the Pending Type Templates resource.
      */
     public function pendingTypeTemplates(bool $condition = true): static
@@ -65,5 +111,20 @@ class GalleryPlugin implements Plugin
         $this->hasPendingTypeTemplates = $condition;
 
         return $this;
+    }
+
+    /**
+     * Enable or disable the Download Stats widget on the gallery edit page.
+     */
+    public function downloadStatsWidget(bool $condition = true): static
+    {
+        $this->hasDownloadStatsWidget = $condition;
+
+        return $this;
+    }
+
+    public function hasDownloadStats(): bool
+    {
+        return $this->hasDownloadStatsWidget;
     }
 }

@@ -67,6 +67,7 @@ return new class extends Migration
             $table->text('message')->nullable();
 
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes
             $table->index('gallery_id', 'idx_shares_gallery');

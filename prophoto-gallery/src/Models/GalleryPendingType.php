@@ -63,13 +63,43 @@ class GalleryPendingType extends Model
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /**
-     * Populate pending types for a newly created gallery from studio templates.
-     *
-     * Called from GalleryObserver::created() or GalleryService::create().
+     * Populate pending types for a newly created gallery from all active studio templates.
+     * Used as the fallback when the photographer doesn't customise the checklist.
      */
     public static function populateFromStudioTemplates(Gallery $gallery): void
     {
         $templates = StudioPendingTypeTemplate::activeForStudio($gallery->studio_id)->get();
+
+        foreach ($templates as $template) {
+            static::create([
+                'gallery_id'  => $gallery->id,
+                'template_id' => $template->id,
+                'name'        => $template->name,
+                'description' => $template->description,
+                'icon'        => $template->icon,
+                'sort_order'  => $template->sort_order,
+                'is_enabled'  => true,
+            ]);
+        }
+    }
+
+    /**
+     * Populate pending types from a specific subset of template IDs.
+     * Used when the photographer customises the checklist in the creation wizard.
+     * Templates not in $templateIds are skipped; sort_order from the template is preserved.
+     *
+     * @param  int[]  $templateIds
+     */
+    public static function populateFromTemplateIds(Gallery $gallery, array $templateIds): void
+    {
+        if (empty($templateIds)) {
+            return;
+        }
+
+        $templates = StudioPendingTypeTemplate::whereIn('id', $templateIds)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
 
         foreach ($templates as $template) {
             static::create([

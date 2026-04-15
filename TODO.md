@@ -33,3 +33,42 @@
 ## prophoto-ingest/tests/Unit/BatchUploadRecognitionServiceTest.php
 - Consider extracting the anonymous generator/scoring stubs into small private helpers to reduce duplication across targeted edge-case tests.
 - TODO: consider adding one test that proves stable secondary ordering when scores tie (same score, different session_id/buffer/distance inputs).
+
+I need you to fix a brittle Postman sandbox bootstrap workflow in my ProPhoto repo.
+
+Current problem:
+- I have a Postman request called "Load Sandbox Context" that is being used as a utility request to paste `sandbox.json` into the request body.
+- A pre-request script reads `pm.request.body.raw`, parses the JSON, and writes environment variables before the HTTP call fires.
+- The actual HTTP response is irrelevant.
+- This is fragile because the request body is not reliably preserved, and automation/agent behavior can change request method/auth/body handling.
+- Using a fake or repurposed request for this is the wrong design.
+- GET-with-body is especially unreliable, and POST requests may get auth behavior applied that interferes with the intended use.
+
+What I want:
+Recommend and implement the single best long-term solution, not multiple equal options.
+
+Best solution I want you to choose unless you see a strong architectural conflict:
+- Create a real dev-only/local-only API endpoint specifically for sandbox/bootstrap context loading.
+- This endpoint should exist in the app as an intentional contract, not as a fake transport request.
+- The Postman request should call that real endpoint with a proper POST body.
+- Ideally, the endpoint should return a normalized `postman` object containing the environment values Postman needs.
+- Then Postman should load environment variables from the response in the Tests script, instead of depending on pasted raw request body plus pre-request parsing.
+
+Why this is the best option:
+- It aligns request semantics with actual behavior.
+- It avoids brittle request-body persistence issues.
+- It avoids GET-body hacks.
+- It reduces interference from auth/method normalization.
+- It creates a stable, explicit contract between the local sandbox system and Postman.
+- It is easier to document and maintain.
+
+Repo/project context:
+- This is a multi-package Laravel ecosystem called ProPhoto.
+- Respect package boundaries and architecture rules.
+- Do not introduce a shortcut that violates domain ownership.
+- If this should live in the app/dev tooling layer rather than a domain package, say so explicitly and explain why.
+
+Please do the following:
+1. Briefly explain the root cause of the current brittleness.
+2. State clearly why the dev-only dedicated endpoint is the best option.
+3. Propose the exact endpoint contract

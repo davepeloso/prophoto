@@ -8,6 +8,28 @@
             "name": "ProPhoto Team"
         }
     ],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../prophoto-contracts",
+            "options": {"symlink": true}
+        },
+        {
+            "type": "path",
+            "url": "../prophoto-access",
+            "options": {"symlink": true}
+        },
+        {
+            "type": "path",
+            "url": "../prophoto-assets",
+            "options": {"symlink": true}
+        },
+        {
+            "type": "path",
+            "url": "../prophoto-interactions",
+            "options": {"symlink": true}
+        }
+    ],
     "require": {
         "php": "^8.2",
         "illuminate/support": "^11.0|^12.0",
@@ -16,11 +38,24 @@
         "prophoto/access": "*",
         "prophoto/assets": "*"
     },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.0",
+        "prophoto/interactions": "*"
+    },
     "autoload": {
         "psr-4": {
             "ProPhoto\\Gallery\\": "src/",
             "ProPhoto\\Gallery\\Database\\Seeders\\": "database/seeders/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ProPhoto\\Gallery\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
     },
     "extra": {
         "laravel": {

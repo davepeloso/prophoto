@@ -23,6 +23,7 @@ class Gallery extends Model
         'organization_id',
         'session_id',
         'type',
+        'viewer_template',
         'mode_config',
         'subject_name',
         'access_code',
@@ -42,6 +43,7 @@ class Gallery extends Model
 
     protected $casts = [
         'type'                 => 'string',
+        'viewer_template'      => 'string',
         'mode_config'          => 'array',
         'magic_link_expires_at' => 'datetime',
         'ai_enabled'           => 'boolean',
@@ -153,6 +155,21 @@ class Gallery extends Model
     }
 
     /**
+     * Images with their canonical Asset and derivatives eager-loaded.
+     *
+     * Use this instead of images() whenever you need to display thumbnails
+     * or resolve URLs — avoids N+1 queries across the asset spine boundary.
+     *
+     * Example:
+     *   $gallery->imagesWithAssets()->orderBy('sort_order')->get()
+     *   then: $image->resolvedThumbnailUrl()
+     */
+    public function imagesWithAssets(): HasMany
+    {
+        return $this->hasMany(Image::class)->with(['asset.derivatives']);
+    }
+
+    /**
      * Get the AI generation for this gallery.
      */
     public function aiGeneration(): HasOne
@@ -170,6 +187,31 @@ class Gallery extends Model
     }
 
     /**
+     * Activity ledger entries for this gallery (append-only).
+     * Single write path: GalleryActivityLogger::log().
+     */
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(GalleryActivityLog::class);
+    }
+
+    /**
+     * Share links for this gallery.
+     */
+    public function shares(): HasMany
+    {
+        return $this->hasMany(GalleryShare::class);
+    }
+
+    /**
+     * Access log entries for this gallery.
+     */
+    public function accessLogs(): HasMany
+    {
+        return $this->hasMany(GalleryAccessLog::class);
+    }
+
+    /**
      * Get only the enabled pending types for this gallery.
      */
     public function enabledPendingTypes(): HasMany
@@ -177,6 +219,15 @@ class Gallery extends Model
         return $this->hasMany(GalleryPendingType::class)
             ->where('is_enabled', true)
             ->orderBy('sort_order');
+    }
+
+    /**
+     * Get the effective viewer template slug.
+     * Null in the database means 'default'.
+     */
+    public function getEffectiveViewerTemplate(): string
+    {
+        return $this->viewer_template ?? 'default';
     }
 
     /**
@@ -246,6 +297,17 @@ class Gallery extends Model
                 ->whereHas('interactions', fn($q) => $q->where('approved_for_marketing', true))
                 ->count(),
         ]);
+    }
+
+    /**
+     * Atomically increment the download counter.
+     *
+     * Uses Eloquent increment() to avoid race conditions when
+     * multiple downloads happen simultaneously.
+     */
+    public function incrementDownloadCount(): void
+    {
+        $this->increment('download_count');
     }
 
     /**

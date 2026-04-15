@@ -16,6 +16,9 @@ use ProPhoto\Gallery\Models\StudioPendingTypeTemplate;
 use ProPhoto\Gallery\Policies\GalleryCollectionPolicy;
 use ProPhoto\Gallery\Policies\GallerySharePolicy;
 use ProPhoto\Gallery\Policies\GalleryTemplatePolicy;
+use ProPhoto\Gallery\Repositories\EloquentGalleryRepository;
+use ProPhoto\Gallery\Services\ViewerTemplateRegistry;
+use ProPhoto\Contracts\Contracts\Gallery\GalleryRepositoryContract;
 
 class GalleryServiceProvider extends ServiceProvider
 {
@@ -28,6 +31,16 @@ class GalleryServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__.'/../config/gallery.php', 'prophoto-gallery'
         );
+
+        // Bind the GalleryRepositoryContract — cross-package consumers
+        // resolve this from the container, never instantiate directly.
+        $this->app->singleton(
+            GalleryRepositoryContract::class,
+            EloquentGalleryRepository::class
+        );
+
+        // Story 7.4 — Viewer Template Registry (config-driven, singleton)
+        $this->app->singleton(ViewerTemplateRegistry::class);
     }
 
     /**
@@ -43,6 +56,9 @@ class GalleryServiceProvider extends ServiceProvider
 
         // Load API routes
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+
+        // Load public web routes (gallery viewer — no auth)
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
 
         // Publish config
         $this->publishes([

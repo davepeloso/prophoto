@@ -119,15 +119,23 @@ class SandboxSeeder extends Seeder
                 ]);
 
                 $galleryId = DB::table('galleries')->insertGetId([
-                    'studio_id'      => $studioId,
+                    'studio_id'       => $studioId,
                     'organization_id' => $orgId,
-                    'subject_name'   => 'April 2026 Shoot',
-                    'status'         => 'active',
-                    'image_count'    => 0,
-                    'created_at'     => now(),
-                    'updated_at'     => now(),
+                    'subject_name'    => 'April 2026 Shoot',
+                    'type'            => 'proofing',
+                    'mode_config'     => json_encode([
+                        'min_approvals'       => 5,
+                        'max_approvals'       => null,
+                        'max_pending'         => null,
+                        'ratings_enabled'     => true,
+                        'pipeline_sequential' => true,
+                    ]),
+                    'status'          => 'active',
+                    'image_count'     => 0,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
                 ]);
-                $this->command->line("  ✔ Gallery created (id: $galleryId)");
+                $this->command->line("  ✔ Gallery created (id: $galleryId, type: proofing)");
 
                 // ── Assign Roles ───────────────────────────────────────────
                 // Must use Eloquent models (not DB::table) for Spatie to work
@@ -180,6 +188,258 @@ class SandboxSeeder extends Seeder
                     }
                 }
                 $this->command->line("  ✔ Contextual grants assigned to subject@example.com for gallery $galleryId");
+
+                // ── 3b. Sprint 2 — Gallery Pending Types ──────────────────
+                // Populate gallery_pending_types from system defaults
+                if ($this->tableExists('gallery_pending_types') && $this->tableExists('studio_pending_type_templates')) {
+                    $gallery = \ProPhoto\Gallery\Models\Gallery::find($galleryId);
+                    if ($gallery) {
+                        \ProPhoto\Gallery\Models\GalleryPendingType::populateFromStudioTemplates($gallery);
+                        $this->command->line("  ✔ Gallery pending types populated from studio templates");
+                    }
+                }
+
+                // ── 3c. Sprint 2 — Sample Assets + Gallery Images ─────────
+                // Create two ready assets and link them to the gallery as
+                // Image rows via the GalleryRepositoryContract. This exercises
+                // the full asset → gallery association from Story 2.3/2.4.
+                $asset1Id = null;
+                $asset2Id = null;
+                if ($this->tableExists('assets') && $this->tableExists('images')) {
+                    $asset1Id = DB::table('assets')->insertGetId([
+                        'studio_id'            => $studioId,
+                        'type'                 => 'image',
+                        'original_filename'    => 'IMG_0042_proof.jpg',
+                        'mime_type'            => 'image/jpeg',
+                        'bytes'                => 5_242_880,
+                        'checksum_sha256'      => hash('sha256', 'sandbox-asset-1'),
+                        'storage_driver'       => 'local',
+                        'storage_key_original' => "studio/$studioId/proofs/IMG_0042_proof.jpg",
+                        'logical_path'         => "studio/$studioId/proofs/IMG_0042_proof.jpg",
+                        'status'               => 'ready',
+                        'created_at'           => now(),
+                        'updated_at'           => now(),
+                    ]);
+
+                    $asset2Id = DB::table('assets')->insertGetId([
+                        'studio_id'            => $studioId,
+                        'type'                 => 'image',
+                        'original_filename'    => 'IMG_0043_proof.jpg',
+                        'mime_type'            => 'image/jpeg',
+                        'bytes'                => 4_194_304,
+                        'checksum_sha256'      => hash('sha256', 'sandbox-asset-2'),
+                        'storage_driver'       => 'local',
+                        'storage_key_original' => "studio/$studioId/proofs/IMG_0043_proof.jpg",
+                        'logical_path'         => "studio/$studioId/proofs/IMG_0043_proof.jpg",
+                        'status'               => 'ready',
+                        'created_at'           => now(),
+                        'updated_at'           => now(),
+                    ]);
+
+                    $this->command->line("  ✔ Assets created (id: $asset1Id, $asset2Id)");
+
+                    // Create thumbnail derivatives
+                    if ($this->tableExists('asset_derivatives')) {
+                        DB::table('asset_derivatives')->insert([
+                            [
+                                'asset_id'    => $asset1Id,
+                                'type'        => 'thumbnail',
+                                'storage_key' => "studio/$studioId/derivatives/thumb_0042.jpg",
+                                'mime_type'   => 'image/jpeg',
+                                'bytes'       => 25_000,
+                                'created_at'  => now(),
+                                'updated_at'  => now(),
+                            ],
+                            [
+                                'asset_id'    => $asset2Id,
+                                'type'        => 'thumbnail',
+                                'storage_key' => "studio/$studioId/derivatives/thumb_0043.jpg",
+                                'mime_type'   => 'image/jpeg',
+                                'bytes'       => 22_000,
+                                'created_at'  => now(),
+                                'updated_at'  => now(),
+                            ],
+                        ]);
+                        $this->command->line("  ✔ Asset derivatives created (thumbnails)");
+                    }
+
+                    // Create Image rows linking assets to gallery
+                    $image1Id = DB::table('images')->insertGetId([
+                        'gallery_id'        => $galleryId,
+                        'asset_id'          => $asset1Id,
+                        'filename'          => 'IMG_0042_proof.jpg',
+                        'original_filename' => 'IMG_0042_proof.jpg',
+                        'sort_order'        => 0,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+
+                    $image2Id = DB::table('images')->insertGetId([
+                        'gallery_id'        => $galleryId,
+                        'asset_id'          => $asset2Id,
+                        'filename'          => 'IMG_0043_proof.jpg',
+                        'original_filename' => 'IMG_0043_proof.jpg',
+                        'sort_order'        => 1,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+
+                    // Update gallery image_count
+                    DB::table('galleries')->where('id', $galleryId)->update(['image_count' => 2]);
+
+                    $this->command->line("  ✔ Gallery images created (2 images linked to assets)");
+                }
+
+                // ── 3d. Sprint 2 — Gallery Share (for identity gate) ──────
+                $shareId = null;
+                if ($this->tableExists('gallery_shares')) {
+                    // Sprint 3: deterministic token for Postman + identity confirmed
+                    $shareToken = 'sandbox-share-token-' . str_pad((string) ($galleryId ?? 1), 44, '0', STR_PAD_RIGHT);
+
+                    $shareId = DB::table('gallery_shares')->insertGetId([
+                        'gallery_id'            => $galleryId,
+                        'shared_by_user_id'     => $userId,
+                        'shared_with_email'     => 'subject@example.com',
+                        'shared_with_user_id'   => $subjectUserId,
+                        'share_token'           => $shareToken,
+                        'can_view'              => true,
+                        'can_download'          => true,
+                        'can_approve'           => true,
+                        'can_comment'           => true,
+                        'message'               => 'Please review and approve your favorites!',
+                        // Sprint 3: identity confirmed — viewer goes straight to proofing
+                        'confirmed_email'       => 'subject@example.com',
+                        'identity_confirmed_at' => now()->subMinutes(10),
+                        'submitted_at'          => null,
+                        'is_locked'             => false,
+                        'pipeline_overrides'    => null,
+                        'created_at'            => now(),
+                        'updated_at'            => now(),
+                    ]);
+                    $this->command->line("  ✔ Gallery share created (id: $shareId, recipient: subject@example.com)");
+                }
+
+                // ── 3e. Sprint 2 — Gallery Activity Log (seed entries) ────
+                if ($this->tableExists('gallery_activity_log')) {
+                    DB::table('gallery_activity_log')->insert([
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => null,
+                            'image_id'         => null,
+                            'action_type'      => 'gallery_created',
+                            'actor_type'       => 'studio_user',
+                            'actor_email'      => 'dave@example.com',
+                            'metadata'         => json_encode(['type' => 'proofing', 'template' => 'portrait']),
+                            'occurred_at'      => now()->subMinutes(15),
+                            'created_at'       => now()->subMinutes(15),
+                        ],
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => $shareId,
+                            'image_id'         => null,
+                            'action_type'      => 'share_created',
+                            'actor_type'       => 'studio_user',
+                            'actor_email'      => 'dave@example.com',
+                            'metadata'         => json_encode(['recipient' => 'subject@example.com']),
+                            'occurred_at'      => now()->subMinutes(12),
+                            'created_at'       => now()->subMinutes(12),
+                        ],
+                        // Sprint 3 — identity gate + proofing actions
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => $shareId,
+                            'image_id'         => null,
+                            'action_type'      => 'identity_confirmed',
+                            'actor_type'       => 'share_identity',
+                            'actor_email'      => 'subject@example.com',
+                            'metadata'         => json_encode([
+                                'shared_with_email' => 'subject@example.com',
+                                'ip'                => '192.168.1.100',
+                            ]),
+                            'occurred_at'      => now()->subMinutes(10),
+                            'created_at'       => now()->subMinutes(10),
+                        ],
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => $shareId,
+                            'image_id'         => null,
+                            'action_type'      => 'gallery_viewed',
+                            'actor_type'       => 'share_identity',
+                            'actor_email'      => 'subject@example.com',
+                            'metadata'         => json_encode(['ip' => '192.168.1.100']),
+                            'occurred_at'      => now()->subMinutes(9),
+                            'created_at'       => now()->subMinutes(9),
+                        ],
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => $shareId,
+                            'image_id'         => $image1Id ?? null,
+                            'action_type'      => 'image_approved',
+                            'actor_type'       => 'share_identity',
+                            'actor_email'      => 'subject@example.com',
+                            'metadata'         => json_encode(['status' => 'approved']),
+                            'occurred_at'      => now()->subMinutes(5),
+                            'created_at'       => now()->subMinutes(5),
+                        ],
+                        [
+                            'gallery_id'       => $galleryId,
+                            'gallery_share_id' => $shareId,
+                            'image_id'         => $image1Id ?? null,
+                            'action_type'      => 'image_rated',
+                            'actor_type'       => 'share_identity',
+                            'actor_email'      => 'subject@example.com',
+                            'metadata'         => json_encode(['rating' => 5]),
+                            'occurred_at'      => now()->subMinutes(4),
+                            'created_at'       => now()->subMinutes(4),
+                        ],
+                    ]);
+                    $this->command->line("  ✔ Gallery activity log seeded (6 entries)");
+                }
+
+                // ── 3f. Sprint 3 — Image Approval States ─────────────────
+                // One image approved, one unapproved — exercises the proofing viewer
+                if ($this->tableExists('image_approval_states') && isset($image1Id)) {
+                    DB::table('image_approval_states')->insert([
+                        [
+                            'gallery_id'       => $galleryId,
+                            'image_id'         => $image1Id,
+                            'gallery_share_id' => $shareId,
+                            'status'           => 'approved',
+                            'pending_type_id'  => null,
+                            'pending_note'     => null,
+                            'actor_email'      => 'subject@example.com',
+                            'set_at'           => now()->subMinutes(5),
+                            'created_at'       => now()->subMinutes(5),
+                            'updated_at'       => now()->subMinutes(5),
+                        ],
+                    ]);
+                    $this->command->line("  ✔ Image approval states seeded (1 approved, 1 unapproved)");
+                }
+
+                // ── 3g. Sprint 3 — Gallery Access Logs ───────────────────
+                if ($this->tableExists('gallery_access_logs')) {
+                    DB::table('gallery_access_logs')->insert([
+                        [
+                            'gallery_id'    => $galleryId,
+                            'action'        => 'view',
+                            'resource_type' => 'share',
+                            'resource_id'   => $shareId,
+                            'ip_address'    => '192.168.1.100',
+                            'user_agent'    => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Sandbox Test',
+                            'created_at'    => now()->subMinutes(9),
+                        ],
+                        [
+                            'gallery_id'    => $galleryId,
+                            'action'        => 'view',
+                            'resource_type' => 'gallery',
+                            'resource_id'   => $galleryId,
+                            'ip_address'    => '192.168.1.100',
+                            'user_agent'    => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Sandbox Test',
+                            'created_at'    => now()->subMinutes(8),
+                        ],
+                    ]);
+                    $this->command->line("  ✔ Gallery access logs seeded (2 entries)");
+                }
 
             } else {
                 $this->command->warn("  ⚠ galleries table not found — skipping gallery seed");
@@ -311,6 +571,11 @@ class SandboxSeeder extends Seeder
             $this->command->line("  GET  /api/ingest/sessions/$sessionId/progress");
             $this->command->line("  POST /api/ingest/sessions/$sessionId/confirm");
             $this->command->line("  GET  /api/ingest/sessions/$sessionId/preview-status");
+            if (isset($shareToken)) {
+                $this->command->newLine();
+                $this->command->info('Gallery viewer (Sprint 3):');
+                $this->command->line("  GET  /g/$shareToken  (proofing viewer — identity pre-confirmed)");
+            }
             $this->command->newLine();
             $this->command->info('Users (all passwords: password)');
             $this->command->line("  studio_user  dave@example.com    role: studio_user");
@@ -345,6 +610,7 @@ class SandboxSeeder extends Seeder
                 // section and in the importable postman_environment block.
                 $postmanVars = [
                     'PROPHOTO_API_BASE_URL'  => $baseUrl,
+                    'PROPHOTO_APP_URL'       => rtrim($appUrl, '/'),
                     'SESSION_ID'             => $sessionId,
                     // SANDBOX_SESSION_ID is a stable copy of the seeded session ID.
                     // Requests that overwrite SESSION_ID (e.g. Match Calendar) can
@@ -360,6 +626,14 @@ class SandboxSeeder extends Seeder
                     'STUDIO_EMAIL'           => 'dave@example.com',
                     'CLIENT_EMAIL'           => 'client@example.com',
                     'SUBJECT_EMAIL'          => 'subject@example.com',
+                    // Sprint 2 — asset + share IDs for gallery smoke tests
+                    'ASSET_1_ID'             => (string) ($asset1Id ?? ''),
+                    'ASSET_2_ID'             => (string) ($asset2Id ?? ''),
+                    'SHARE_ID'               => (string) ($shareId ?? ''),
+                    // Sprint 3 — viewer + proofing smoke tests
+                    'SHARE_TOKEN'            => $shareToken ?? '',
+                    'IMAGE_1_ID'             => (string) ($image1Id ?? ''),
+                    'IMAGE_2_ID'             => (string) ($image2Id ?? ''),
                 ];
 
                 // Postman environment import format — File → Import → this file
@@ -503,6 +777,7 @@ class SandboxSeeder extends Seeder
                 ]),
                 'variables_required' => [
                     'PROPHOTO_API_BASE_URL',
+                    'PROPHOTO_APP_URL',
                     'SESSION_ID',
                     'SANDBOX_SESSION_ID',
                     'GALLERY_ID',
@@ -512,6 +787,12 @@ class SandboxSeeder extends Seeder
                     'STUDIO_BEARER_TOKEN',
                     'CLIENT_BEARER_TOKEN',
                     'SUBJECT_BEARER_TOKEN',
+                    'SHARE_ID',
+                    'SHARE_TOKEN',
+                    'ASSET_1_ID',
+                    'ASSET_2_ID',
+                    'IMAGE_1_ID',
+                    'IMAGE_2_ID',
                 ],
             ],
         ];
@@ -600,8 +881,16 @@ class SandboxSeeder extends Seeder
         $url    = $def['url'];
         $method = strtoupper($def['method']);
 
-        // Strip the base URL variable prefix to get the path-only portion
-        $pathOnly = preg_replace('/^\{\{PROPHOTO_API_BASE_URL\}\}/', '', $url);
+        // Detect which base URL variable this request uses.
+        // API routes use {{PROPHOTO_API_BASE_URL}}, web routes use {{PROPHOTO_APP_URL}}.
+        if (str_starts_with($url, '{{PROPHOTO_APP_URL}}')) {
+            $hostVar  = '{{PROPHOTO_APP_URL}}';
+            $pathOnly = preg_replace('/^\{\{PROPHOTO_APP_URL\}\}/', '', $url);
+        } else {
+            $hostVar  = '{{PROPHOTO_API_BASE_URL}}';
+            $pathOnly = preg_replace('/^\{\{PROPHOTO_API_BASE_URL\}\}/', '', $url);
+        }
+
         $pathSegments = array_values(
             array_filter(explode('/', $pathOnly), fn($s) => $s !== '')
         );
@@ -633,7 +922,7 @@ class SandboxSeeder extends Seeder
                 'header'      => $headers,
                 'url' => [
                     'raw'  => $url,
-                    'host' => ['{{PROPHOTO_API_BASE_URL}}'],
+                    'host' => [$hostVar],
                     'path' => $pathSegments,
                 ],
                 'description' => $def['description'] ?? '',
@@ -736,6 +1025,7 @@ class SandboxSeeder extends Seeder
 
                     const KNOWN_VARS = [
                         "PROPHOTO_API_BASE_URL",
+                        "PROPHOTO_APP_URL",
                         "SESSION_ID",
                         "SANDBOX_SESSION_ID",
                         "GALLERY_ID",
@@ -747,6 +1037,12 @@ class SandboxSeeder extends Seeder
                         "STUDIO_EMAIL",
                         "CLIENT_EMAIL",
                         "SUBJECT_EMAIL",
+                        "SHARE_ID",
+                        "SHARE_TOKEN",
+                        "ASSET_1_ID",
+                        "ASSET_2_ID",
+                        "IMAGE_1_ID",
+                        "IMAGE_2_ID",
                     ];
 
                     const raw = pm.request.body && pm.request.body.raw ? pm.request.body.raw.trim() : "";
@@ -1252,6 +1548,116 @@ class SandboxSeeder extends Seeder
                 'description' => 'Bogus Bearer token. Sanctum rejects it with 401.',
                 'tests'       => <<<'JS'
                     pm.test("Status 401 with invalid token", () => pm.response.to.have.status(401));
+                    JS,
+            ],
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 05 — Gallery: Viewer & Proofing (Sprint 3)
+            // Public web routes — no auth, token-based access.
+            // Uses APP_URL (not API base) since these are web routes at /g/{token}.
+            // ═══════════════════════════════════════════════════════════════════
+
+            [
+                'name'        => 'View Gallery (via share token)',
+                'folder'      => '05 — Gallery: Viewer & Proofing',
+                'method'      => 'GET',
+                'url'         => '{{PROPHOTO_APP_URL}}/g/{{SHARE_TOKEN}}',
+                'headers'     => ['Accept' => 'text/html'],
+                'auth'        => ['type' => 'noauth'],
+                'body'        => null,
+                'description' => implode("\n", [
+                    'Load the gallery viewer via share token. No auth required.',
+                    '',
+                    'For a proofing gallery with confirmed identity → renders proofing view.',
+                    'For a proofing gallery without confirmed identity → renders identity gate.',
+                    'For a presentation gallery → renders presentation lightbox.',
+                    '',
+                    'The seeded share has identity already confirmed (subject@example.com),',
+                    'so this should render the proofing viewer directly.',
+                ]),
+                'tests'       => <<<'JS'
+                    pm.test("Status 200", () => pm.response.to.have.status(200));
+                    pm.test("Response is HTML", () => {
+                        pm.expect(pm.response.headers.get("Content-Type")).to.include("text/html");
+                    });
+                    JS,
+            ],
+
+            [
+                'name'        => 'View Gallery — invalid token (404)',
+                'folder'      => '05 — Gallery: Viewer & Proofing',
+                'method'      => 'GET',
+                'url'         => '{{PROPHOTO_APP_URL}}/g/invalid-token-does-not-exist',
+                'headers'     => ['Accept' => 'text/html'],
+                'auth'        => ['type' => 'noauth'],
+                'body'        => null,
+                'description' => 'Negative test. Non-existent share token should return 404.',
+                'tests'       => <<<'JS'
+                    pm.test("Status 404", () => pm.response.to.have.status(404));
+                    JS,
+            ],
+
+            [
+                'name'        => 'Approve Image',
+                'folder'      => '05 — Gallery: Viewer & Proofing',
+                'method'      => 'POST',
+                'url'         => '{{PROPHOTO_APP_URL}}/g/{{SHARE_TOKEN}}/approve/{{IMAGE_2_ID}}',
+                'headers'     => ['Accept' => 'application/json', 'X-CSRF-TOKEN' => '{{CSRF_TOKEN}}'],
+                'auth'        => ['type' => 'noauth'],
+                'body'        => null,
+                'description' => implode("\n", [
+                    'Approve an image in the proofing pipeline.',
+                    '',
+                    'Note: This requires a valid CSRF token from the web session.',
+                    'For Postman testing, you may need to first GET the viewer page',
+                    'and extract the CSRF token from the meta tag.',
+                    '',
+                    'Sets image status to "approved" in image_approval_states.',
+                ]),
+                'tests'       => <<<'JS'
+                    // CSRF may cause 419 in Postman — that's expected without a session
+                    pm.test("Status 200 or 419 (CSRF)", () => {
+                        pm.expect([200, 419]).to.include(pm.response.code);
+                    });
+                    JS,
+            ],
+
+            [
+                'name'        => 'Rate Image',
+                'folder'      => '05 — Gallery: Viewer & Proofing',
+                'method'      => 'POST',
+                'url'         => '{{PROPHOTO_APP_URL}}/g/{{SHARE_TOKEN}}/rate/{{IMAGE_1_ID}}',
+                'headers'     => ['Accept' => 'application/json', 'Content-Type' => 'application/json', 'X-CSRF-TOKEN' => '{{CSRF_TOKEN}}'],
+                'auth'        => ['type' => 'noauth'],
+                'body'        => json_encode(['rating' => 4], JSON_PRETTY_PRINT),
+                'description' => 'Rate an image 1-5 stars. Requires CSRF token from web session.',
+                'tests'       => <<<'JS'
+                    pm.test("Status 200 or 419 (CSRF)", () => {
+                        pm.expect([200, 419]).to.include(pm.response.code);
+                    });
+                    JS,
+            ],
+
+            [
+                'name'        => 'Submit Proofing (lock share)',
+                'folder'      => '05 — Gallery: Viewer & Proofing',
+                'method'      => 'POST',
+                'url'         => '{{PROPHOTO_APP_URL}}/g/{{SHARE_TOKEN}}/submit',
+                'headers'     => ['Accept' => 'application/json', 'X-CSRF-TOKEN' => '{{CSRF_TOKEN}}'],
+                'auth'        => ['type' => 'noauth'],
+                'body'        => null,
+                'description' => implode("\n", [
+                    'Submit the proofing gallery — locks the share (is_locked=true, submitted_at=now).',
+                    'After submission, all actions are read-only.',
+                    '',
+                    'WARNING: This is destructive — once submitted, the share cannot be unlocked.',
+                    'Only run this if you intend to test the locked/read-only state.',
+                    'Requires CSRF token from web session.',
+                ]),
+                'tests'       => <<<'JS'
+                    pm.test("Status 200 or 419 (CSRF)", () => {
+                        pm.expect([200, 419]).to.include(pm.response.code);
+                    });
                     JS,
             ],
 

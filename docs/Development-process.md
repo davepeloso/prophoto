@@ -51,14 +51,14 @@ No feature implementation begins until the owning package, boundaries, and expec
 
 Roles
 
-Product Owner (You)
+Product Owner
 • Defines real-world problems and workflow needs
 • Approves feature direction
 • Validates that output matches real usage
 
 ⸻
 
-Architect (ChatGPT)
+Architect
 • Determines the next development step
 • Identifies owning package
 • Defines boundaries and system impact
@@ -66,14 +66,14 @@ Architect (ChatGPT)
 
 ⸻
 
-Implementation Engineer (Codex)
+Implementation Engineer
 • Writes code based on approved spec
 • Follows package boundaries strictly
 • Does not invent architecture
 
 ⸻
 
-Reviewer / Strategist (Claude Opus)
+Reviewer / Strategist)
 • Reviews high-level design decisions
 • Identifies gaps or inconsistencies
 • Helps refine product direction (not implementation)

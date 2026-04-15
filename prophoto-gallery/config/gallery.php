@@ -55,6 +55,60 @@ return [
         'max_tags_per_image' => 20,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Viewer Templates
+    |--------------------------------------------------------------------------
+    |
+    | Available visual templates for client-facing gallery viewers.
+    | Each template has: name, description, supported types, and Google Fonts.
+    | slug => config. The 'default' template is always available (no config needed).
+    |
+    | Adding a new template:
+    |   1. Add a Blade file at resources/views/viewer/{type}/{slug}.blade.php
+    |   2. Register it below with name, description, types, and fonts.
+    |
+    */
+
+    'viewer_templates' => [
+        'portrait' => [
+            'name'        => 'Portrait',
+            'description' => 'Two-column tall cards. Intimate & warm. Best for headshots and portraits.',
+            'types'       => ['presentation', 'proofing'],
+            'fonts'       => ['Playfair Display', 'Lato'],
+        ],
+        'editorial' => [
+            'name'        => 'Editorial',
+            'description' => 'Asymmetric cinematic layout. Mixed aspect ratios with hero image.',
+            'types'       => ['presentation', 'proofing'],
+            'fonts'       => ['Cormorant Garamond', 'Montserrat'],
+        ],
+        'architectural' => [
+            'name'        => 'Architectural',
+            'description' => 'Three-column landscape grid. Precise and structured.',
+            'types'       => ['presentation', 'proofing'],
+            'fonts'       => ['Archivo', 'Inter'],
+        ],
+        'classic' => [
+            'name'        => 'Classic',
+            'description' => 'Balanced grid with inline ratings and image numbers. Built for proofing.',
+            'types'       => ['proofing'],
+            'fonts'       => ['Libre Baskerville', 'Source Sans 3'],
+        ],
+        'profile' => [
+            'name'        => 'Profile',
+            'description' => 'Centered header with portfolio grid. Great for personal branding.',
+            'types'       => ['presentation', 'proofing'],
+            'fonts'       => ['DM Sans', 'DM Serif Display'],
+        ],
+        'single-column' => [
+            'name'        => 'Single Column',
+            'description' => 'Full-width vertical stack. Cinematic and editorial focus.',
+            'types'       => ['presentation', 'proofing'],
+            'fonts'       => ['Instrument Serif', 'Work Sans'],
+        ],
+    ],
+
     'asset_spine' => [
         // Canonical path for new gallery media writes.
         'write_enabled' => (bool) env('GALLERY_ASSET_SPINE_WRITE_ENABLED', true),

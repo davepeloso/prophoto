@@ -46,6 +46,8 @@ PACKAGES=(
   "prophoto-gallery"
   "prophoto-intelligence"
   "prophoto-ingest"
+  "prophoto-interactions"
+  "prophoto-notifications"
 )
 
 # ─── Colours ─────────────────────────────────────────────────────────────────
@@ -188,6 +190,83 @@ sed -i.bak "s/use HasFactory, Notifiable;/use HasApiTokens, HasFactory, HasRoles
 rm -f "$USER_MODEL.bak"
 ok "Sanctum installed + User model patched with HasApiTokens, HasRoles, HasContextualPermissions"
 
+# ─── Install Filament ───────────────────────────────────────────────────────
+
+step "Installing Filament v4 (admin panel)"
+
+composer require filament/filament:"^4.0" --with-all-dependencies --no-interaction --no-progress --quiet
+
+# Create the admin panel provider
+mkdir -p "$APP_DIR/app/Providers/Filament"
+cat > "$APP_DIR/app/Providers/Filament/AdminPanelProvider.php" << 'PANEL_PHP'
+<?php
+
+namespace App\Providers\Filament;
+
+use Filament\Http\Middleware\Authenticate;
+use Filament\Http\Middleware\AuthenticateSession;
+use Filament\Http\Middleware\DisableBladeIconComponents;
+use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Panel;
+use Filament\PanelProvider;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+use ProPhoto\Gallery\Filament\GalleryPlugin;
+
+class AdminPanelProvider extends PanelProvider
+{
+    public function panel(Panel $panel): Panel
+    {
+        return $panel
+            ->default()
+            ->id('admin')
+            ->path('admin')
+            ->login()
+            ->colors([
+                'primary' => \Filament\Support\Colors\Color::Emerald,
+            ])
+            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
+            ->plugins([
+                GalleryPlugin::make(),
+            ])
+            ->databaseNotifications()
+            ->middleware([
+                EncryptCookies::class,
+                AddQueuedCookiesToResponse::class,
+                StartSession::class,
+                AuthenticateSession::class,
+                ShareErrorsFromSession::class,
+                VerifyCsrfToken::class,
+                SubstituteBindings::class,
+                DisableBladeIconComponents::class,
+                DispatchServingFilamentEvent::class,
+            ])
+            ->authMiddleware([
+                Authenticate::class,
+            ]);
+    }
+}
+PANEL_PHP
+
+ok "Filament v4 installed + AdminPanelProvider created with GalleryPlugin + databaseNotifications"
+
+# Register the panel provider in bootstrap/providers.php
+PROVIDERS_FILE="$APP_DIR/bootstrap/providers.php"
+sed -i.bak "s/return \[/return [\n    App\\\\Providers\\\\Filament\\\\AdminPanelProvider::class,/" "$PROVIDERS_FILE"
+rm -f "$PROVIDERS_FILE.bak"
+ok "AdminPanelProvider registered in bootstrap/providers.php"
+
+# Create Filament resource/page/widget directories so discovery doesn't warn
+mkdir -p "$APP_DIR/app/Filament/Resources"
+mkdir -p "$APP_DIR/app/Filament/Pages"
+mkdir -p "$APP_DIR/app/Filament/Widgets"
+
 step "Requiring all packages (symlinked, no copy)"
 
 if [[ ${#REQUIRE_ARGS[@]} -gt 0 ]]; then
@@ -221,6 +300,11 @@ php artisan vendor:publish \
   --provider="Spatie\Permission\PermissionServiceProvider" \
   --force --no-interaction >/dev/null 2>&1
 ok "Spatie permission migrations published"
+
+# Filament databaseNotifications() requires Laravel's notifications table.
+# This creates the migration in database/migrations/ so artisan migrate picks it up.
+php artisan make:notifications-table --no-interaction >/dev/null 2>&1 || true
+ok "Notifications table migration created"
 
 php artisan migrate --force --no-interaction
 
@@ -271,6 +355,13 @@ ok "App key generated"
 
 php artisan storage:link --force --no-interaction >/dev/null 2>&1 || true
 ok "Storage link created"
+
+# ─── Publish Filament assets ────────────────────────────────────────────────
+
+step "Publishing Filament assets (CSS/JS)"
+
+php artisan filament:assets --no-interaction >/dev/null 2>&1
+ok "Filament assets published"
 
 # ─── Print summary ───────────────────────────────────────────────────────────
 

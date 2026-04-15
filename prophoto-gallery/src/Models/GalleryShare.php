@@ -5,6 +5,7 @@ namespace ProPhoto\Gallery\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use ProPhoto\Gallery\Models\Gallery;
@@ -35,6 +36,12 @@ class GalleryShare extends Model
         'revoked_at',
         'revoked_by_user_id',
         'message',
+        // Sprint 2 — identity gate columns (extend migration 000019)
+        'confirmed_email',
+        'identity_confirmed_at',
+        'submitted_at',
+        'is_locked',
+        'pipeline_overrides',
     ];
 
     protected $casts = [
@@ -51,6 +58,11 @@ class GalleryShare extends Model
         'can_approve' => 'boolean',
         'can_comment' => 'boolean',
         'can_share' => 'boolean',
+        // Sprint 2 — identity gate
+        'identity_confirmed_at' => 'datetime',
+        'submitted_at' => 'datetime',
+        'is_locked' => 'boolean',
+        'pipeline_overrides' => 'array',
     ];
 
     protected $hidden = [
@@ -88,6 +100,14 @@ class GalleryShare extends Model
     }
 
     /**
+     * Get the approval states for this share.
+     */
+    public function approvalStates(): HasMany
+    {
+        return $this->hasMany(ImageApprovalState::class, 'gallery_share_id');
+    }
+
+    /**
      * Get the access logs for this share.
      */
     public function accessLogs()
@@ -109,15 +129,44 @@ class GalleryShare extends Model
     }
 
     /**
-     * Check if the share link has reached max views.
+     * Check if the share link has reached its download limit.
+     *
+     * @deprecated Use canDownload() for full permission + limit check.
      */
-    public function hasReachedMaxViews(): bool
+    public function hasReachedMaxDownloads(): bool
     {
         if (!$this->max_downloads) {
             return false;
         }
 
         return $this->download_count >= $this->max_downloads;
+    }
+
+    /**
+     * Check if downloads are allowed for this share.
+     *
+     * Returns false if:
+     *   - can_download flag is false
+     *   - max_downloads is set and download_count >= max_downloads
+     */
+    public function canDownload(): bool
+    {
+        if (! $this->can_download) {
+            return false;
+        }
+
+        return ! $this->hasReachedMaxDownloads();
+    }
+
+    /**
+     * Atomically increment the download counter.
+     *
+     * Uses DB::increment to avoid race conditions when two
+     * downloads happen simultaneously on the same share.
+     */
+    public function incrementDownloadCount(): void
+    {
+        $this->increment('download_count');
     }
 
     /**
@@ -140,6 +189,25 @@ class GalleryShare extends Model
         $this->last_accessed_at = now();
         $this->access_count = (int) $this->access_count + 1;
         $this->save();
+    }
+
+    /**
+     * Check if the identity gate has been confirmed for this share.
+     */
+    public function isIdentityConfirmed(): bool
+    {
+        return $this->confirmed_email !== null && $this->identity_confirmed_at !== null;
+    }
+
+    /**
+     * Confirm identity for this share.
+     */
+    public function confirmIdentity(string $email): void
+    {
+        $this->update([
+            'confirmed_email'       => $email,
+            'identity_confirmed_at' => now(),
+        ]);
     }
 
     /**

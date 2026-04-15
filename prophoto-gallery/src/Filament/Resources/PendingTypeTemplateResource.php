@@ -2,6 +2,11 @@
 
 namespace ProPhoto\Gallery\Filament\Resources;
 
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,9 +32,9 @@ class PendingTypeTemplateResource extends Resource
 {
     protected static ?string $model = StudioPendingTypeTemplate::class;
 
-    protected static string|null|\BackedEnum $navigationIcon = 'heroicon-o-queue-list';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-queue-list';
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Gallery Settings';
+    protected static \UnitEnum|string|null $navigationGroup = 'Gallery Settings';
 
     protected static ?string $navigationLabel = 'Pending Type Templates';
 
@@ -93,7 +98,7 @@ class PendingTypeTemplateResource extends Resource
 
                 Section::make('System Info')
                     ->schema([
-                        Forms\Components\Placeholder::make('is_system_default')
+                        \Filament\Schemas\Components\Placeholder::make('is_system_default')
                             ->label('System Default?')
                             ->content(fn ($record) => $record?->is_system_default ? 'Yes — managed by ProPhoto' : 'No — your custom type'),
                     ])
@@ -147,19 +152,19 @@ class PendingTypeTemplateResource extends Resource
                     ->label('System defaults'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
+                EditAction::make(),
+                DeleteAction::make()
                     ->hidden(fn ($record) => $record->is_system_default)
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
                         ->hidden(), // disable bulk delete for safety
                 ]),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make()
+                CreateAction::make()
                     ->label('Add Pending Type'),
             ]);
     }

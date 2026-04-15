@@ -109,15 +109,78 @@ class Image extends Model
     }
 
     /**
-     * Optional relation to canonical asset record.
+     * The canonical Asset record from prophoto-assets.
+     *
+     * This is a downstream → upstream Eloquent relationship, explicitly allowed
+     * by RULES.md Rule 2. prophoto-gallery never mutates the Asset — read only.
+     *
+     * Returns null when asset_id is not set (legacy images without an asset spine entry).
      */
     public function asset(): BelongsTo
     {
-        if (!class_exists(\ProPhoto\Assets\Models\Asset::class)) {
-            return $this->belongsTo(self::class, 'asset_id')->whereRaw('1 = 0');
+        return $this->belongsTo(\ProPhoto\Assets\Models\Asset::class, 'asset_id');
+    }
+
+    /**
+     * The thumbnail AssetDerivative for this image.
+     *
+     * Prefers type='thumbnail'; falls back to type='preview'.
+     * Returns null if no asset is attached or no derivatives exist yet.
+     *
+     * Usage (eager-load to avoid N+1):
+     *   Image::with('asset.derivatives')->get()
+     *   then call $image->thumbnail()
+     */
+    public function thumbnail(): ?\ProPhoto\Assets\Models\AssetDerivative
+    {
+        if (! $this->relationLoaded('asset') || $this->asset === null) {
+            return null;
         }
 
-        return $this->belongsTo(\ProPhoto\Assets\Models\Asset::class, 'asset_id');
+        $derivatives = $this->asset->derivatives ?? collect();
+
+        return $derivatives->firstWhere('type', 'thumbnail')
+            ?? $derivatives->firstWhere('type', 'preview');
+    }
+
+    /**
+     * Resolved thumbnail URL for display in Filament and client viewers.
+     *
+     * Resolution order:
+     *   1. asset_derivatives.storage_key (type=thumbnail or preview) via Asset spine
+     *   2. Legacy imagekit_thumbnail_url
+     *   3. Legacy thumbnail_path (local storage)
+     *
+     * This replaces the getResolvedThumbnailUrlAttribute raw DB query path
+     * when the Asset relation is eager-loaded. Falls back gracefully for
+     * images without an asset_id.
+     */
+    public function resolvedThumbnailUrl(): ?string
+    {
+        // Asset spine path — preferred when relation is loaded
+        $derivative = $this->thumbnail();
+        if ($derivative !== null && $this->asset !== null) {
+            try {
+                return \Illuminate\Support\Facades\Storage::disk(
+                    $this->asset->storage_driver ?: config('filesystems.default', 'local')
+                )->url($derivative->storage_key);
+            } catch (\Throwable) {
+                // Storage driver unavailable — fall through
+            }
+        }
+
+        // Legacy ImageKit path
+        if (! empty($this->imagekit_thumbnail_url)) {
+            return $this->imagekit_thumbnail_url;
+        }
+
+        // Legacy local storage path
+        $legacyPath = $this->attributes['thumbnail_path'] ?? null;
+        if (is_string($legacyPath) && trim($legacyPath) !== '') {
+            return asset('storage/' . ltrim($legacyPath, '/'));
+        }
+
+        return null;
     }
 
     /**
